@@ -4,6 +4,7 @@ namespace TheGuilty.Core.Audio
 {
 	public interface ISfxAudioService : IAudioService
 	{
-		void Play(SfxAudioMaterial material);
+		void Play(SfxAudioMaterial material, bool loop);
+		void Stop();
 	}
 }

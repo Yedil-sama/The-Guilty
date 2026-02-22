@@ -1,40 +1,65 @@
-﻿using System.Threading.Tasks;
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace TheGuilty.Core.Audio.Sfx
 {
 	public sealed class SfxAudioService : ISfxAudioService
 	{
 		private readonly SfxAudioPool _pool;
+		private AudioSource _loopingSource;
 
 		public SfxAudioService(AudioSource sfxAudioSourcePrefab, Transform parent = null)
 		{
-			SfxAudioFactory factory = new SfxAudioFactory(sfxAudioSourcePrefab, parent);
+			var factory = new SfxAudioFactory(sfxAudioSourcePrefab, parent);
 			_pool = new SfxAudioPool(factory, initialSize: 10);
 		}
 
-		public void Initialize()
+		public void Initialize() { }
+
+		public void Play(SfxAudioMaterial material, bool loop)
 		{
+			if (material == null || material.Clip == null)
+				return;
+
+			if (loop)
+			{
+				if (_loopingSource != null)
+					Stop();
+
+				_loopingSource = _pool.Get();
+				_loopingSource.clip = material.Clip;
+				_loopingSource.volume = material.Volume;
+				_loopingSource.pitch = 1f;
+				_loopingSource.loop = true;
+				_loopingSource.Play();
+			}
+			else
+			{
+				var source = _pool.Get();
+				source.clip = material.Clip;
+				source.volume = material.Volume;
+				source.pitch = Random.Range(material.MinPitch, material.MaxPitch);
+				source.loop = false;
+				source.Play();
+
+				source.GetComponent<MonoBehaviour>()
+					.StartCoroutine(ReleaseAfterPlay(source, material.Clip.length));
+			}
 		}
 
-		public void Play(SfxAudioMaterial material)
+		public void Stop()
 		{
-			if (material == null || material.Clip == null) return;
+			if (_loopingSource == null)
+				return;
 
-			AudioSource source = _pool.Get();
-
-			source.clip = material.Clip;
-			source.volume = material.Volume;
-			source.pitch = Random.Range(material.MinPitch, material.MaxPitch);
-
-			source.Play();
-
-			_ = ReleaseAfterPlay(source, material.Clip.length);
+			_loopingSource.Stop();
+			_loopingSource.loop = false;
+			_pool.Release(_loopingSource);
+			_loopingSource = null;
 		}
 
-		private async Task ReleaseAfterPlay(AudioSource source, float delay)
+		private System.Collections.IEnumerator ReleaseAfterPlay(AudioSource source, float delay)
 		{
-			await Task.Delay((int)(delay * 1000));
+			yield return new WaitForSeconds(delay);
 			_pool.Release(source);
 		}
 	}

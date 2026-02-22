@@ -4,5 +4,6 @@
 	{
 		void Play(AudioMaterial material);
 		void Stop();
+		bool IsPlaying { get; }
 	}
 }

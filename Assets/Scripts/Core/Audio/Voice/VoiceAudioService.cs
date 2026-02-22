@@ -6,6 +6,8 @@ namespace TheGuilty.Core.Audio.Voice
 	{
 		private readonly AudioSource _audioSource;
 
+		public bool IsPlaying => _audioSource.isPlaying;
+
 		public VoiceAudioService(AudioSource audioSource)
 		{
 			_audioSource = audioSource;

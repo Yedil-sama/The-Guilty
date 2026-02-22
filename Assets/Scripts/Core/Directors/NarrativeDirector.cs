@@ -1,69 +1,46 @@
-﻿using TheGuilty.Core.Audio;
+﻿using System.Collections;
 using TheGuilty.Core.GameEvents;
-using TheGuilty.Core.Narrative;
 using UnityEngine;
 
 namespace TheGuilty.Core.Directors
 {
 	public sealed class NarrativeDirector : Director
 	{
-		private const string IntroCallId = "IntroCall";
+		private const string IntroCallId = "Hey it's me";
+		private const float IntroDelay = 15;
 
-		private IVoiceAudioService _voiceAudioService;
-		private PhoneCallNarrativeDefinition[] _narratives;
+		private readonly MonoBehaviour _coroutineHost;
+
+		private AudioDirector _audioDirector;
+
+		public NarrativeDirector(MonoBehaviour coroutineHost)
+		{
+			_coroutineHost = coroutineHost;
+		}
 
 		protected override void OnInitialize()
 		{
+			_audioDirector = ServiceLocator.Get<AudioDirector>();
+
 			EventBus.Subscribe<GameStartedEvent>(OnGameStarted);
 		}
 
-		public NarrativeDirector(IVoiceAudioService voiceAudioService, PhoneCallNarrativeDefinition[] narratives)
+		private void OnGameStarted(GameStartedEvent _)
 		{
-			_voiceAudioService = voiceAudioService;
-			_narratives = narratives;
+			_coroutineHost.StartCoroutine(StartIntroDelayed());
 		}
 
-		private void OnGameStarted(GameStartedEvent gameStartedEvent)
+		private IEnumerator StartIntroDelayed()
 		{
-			StartCall(IntroCallId);
+			if (IntroDelay > 0f)
+				yield return new WaitForSeconds(IntroDelay);
+
+			_audioDirector.PlayPhoneCall(IntroCallId);
 		}
 
 		public void StartCall(string callId)
 		{
-			PhoneCallNarrativeDefinition narrative = null;
-
-			if (_narratives != null)
-			{
-				foreach (var n in _narratives)
-				{
-					if (n.CallId == callId)
-					{
-						narrative = n;
-						break;
-					}
-				}
-			}
-
-			if (narrative == null)
-			{
-				Debug.LogWarning($"Narrative not found: {callId}");
-				return;
-			}
-
-			EventBus.Publish(new PhoneCallRequestedEvent(callId));
-			EventBus.Publish(new PhoneCallStartedEvent(callId));
-
-			foreach (var line in narrative.Lines)
-			{
-				Debug.Log(line.Text);
-
-				if (line.Voice != null && _voiceAudioService != null)
-				{
-					_voiceAudioService.Play(line.Voice);
-				}
-			}
-
-			EventBus.Publish(new PhoneCallEndedEvent(callId));
+			_audioDirector.PlayPhoneCall(callId);
 		}
 	}
 }

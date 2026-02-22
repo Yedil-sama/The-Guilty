@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a6f5000b6acc9b943bd97730cf23c59c, type: 3}
+  m_Name: 0. First Call
+  m_EditorClassIdentifier: 
+  _callId: Hey it's me
+  _lines:
+  - _text: "Hey, it's me.\n\nIt's important \u2014 no time to explain, something
+      serious is happening outside. Stay inside and stay safe.\n\nBy the way, are
+      you okay? Last night you drank a lot\u2026 do you even remember who you are?
+      Hahaha, just kidding, bro.\n\nAlright, I\u2019ll come to you as soon as I can.
+      And remember, don\u2019t go outside."
+    _voice:
+      _clip: {fileID: 8300000, guid: db7e2f00a7f32c642a039ba2a1756134, type: 3}
+      _volume: 1
