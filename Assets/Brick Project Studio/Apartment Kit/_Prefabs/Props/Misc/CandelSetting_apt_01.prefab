@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 148389634393107631}
   - component: {fileID: 148389634393107633}
   - component: {fileID: 148389634393107632}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Wax
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -98,7 +98,7 @@ GameObject:
   - component: {fileID: 148389635804244551}
   - component: {fileID: 148389635804244553}
   - component: {fileID: 148389635804244552}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Candle_Apt_02
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -185,7 +185,7 @@ GameObject:
   - component: {fileID: 6632089767664524070}
   - component: {fileID: 167785521605365365}
   - component: {fileID: 1206175379929488817}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Diffuser
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -271,7 +271,7 @@ GameObject:
   - component: {fileID: 3997488452535064482}
   - component: {fileID: 1821615532042274607}
   - component: {fileID: 5681764160483721090}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Candle_Apt_01
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -359,7 +359,8 @@ GameObject:
   - component: {fileID: 3600746387023386600}
   - component: {fileID: 3154168359694038544}
   - component: {fileID: 4873044041003942650}
-  m_Layer: 0
+  - component: {fileID: 779160617522518998}
+  m_Layer: 6
   m_Name: CandelSetting_apt_01
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -458,6 +459,98 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.26432383, y: 0.031018626, z: 0.79118055}
   m_Center: {x: -0.000000052154064, y: 0.015509302, z: -0.00000017881393}
+--- !u!114 &779160617522518998
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3746901468632373317}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1193cc42578b51349ae91df02822e87c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  <UniqueID>k__BackingField:
+    Id: 2bb7871e85b04307b72a1a7ff9353e3b
+  InteractableType: 2
+  MessageType: 0
+  ExamineType: 1
+  ExamineRotate: 3
+  DisableType: 0
+  PickupItem:
+    m_GUID: 
+    m_Item:
+      Name: 
+      GUID: 
+      Icon: {fileID: 0}
+    m_Section:
+      Name: 
+      GUID: 
+  ItemCustomData:
+    JsonData: 
+  InteractTitle:
+    GlocText: 
+    NormalText: 
+  ExamineTitle:
+    GlocText: 
+    NormalText: 
+  PaperText:
+    GlocText: 
+    NormalText: 
+  HintMessage:
+    GlocText: 
+    NormalText: 
+  MessageTime: 3
+  Quantity: 1
+  SlotsToExpand: 1
+  ExpandRows: 0
+  UseInventoryTitle: 0
+  ExamineInventoryTitle: 0
+  ShowExamineTitle: 1
+  ShowFloatingIcon: 0
+  TakeFromExamine: 0
+  AllowCursorExamine: 0
+  IsPaper: 0
+  AutoShortcut: 0
+  AutoEquip: 0
+  UseExamineZooming: 1
+  ExamineZoomLimits:
+    min: 0.3
+    max: 0.4
+  ExamineDistance: 0.4
+  UseFaceRotation: 0
+  FaceRotation: {x: 0, y: 0, z: 0}
+  UseControlPoint: 0
+  ControlPoint: {x: 0, y: 0.1, z: 0}
+  CollidersEnable: []
+  CollidersDisable: []
+  ExamineHotspot:
+    HotspotTransform: {fileID: 0}
+    Enabled: 1
+    ResetHotspot: 0
+    HotspotAction:
+      m_PersistentCalls:
+        m_Calls: []
+  PickupSound:
+    audioClip: {fileID: 0}
+    volume: 0
+  ExamineSound:
+    audioClip: {fileID: 0}
+    volume: 0
+  ExamineHintSound:
+    audioClip: {fileID: 0}
+    volume: 0
+  OnTakeEvent:
+    m_PersistentCalls:
+      m_Calls: []
+  OnExamineStartEvent:
+    m_PersistentCalls:
+      m_Calls: []
+  OnExamineEndEvent:
+    m_PersistentCalls:
+      m_Calls: []
+  IsExamined: 0
 --- !u!1 &8226411726152332437
 GameObject:
   m_ObjectHideFlags: 0
@@ -469,7 +562,7 @@ GameObject:
   - component: {fileID: 3619667176629236200}
   - component: {fileID: 5283707911489791830}
   - component: {fileID: 6837760054585702384}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Wax
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -556,7 +649,7 @@ GameObject:
   - component: {fileID: 12853074398674921}
   - component: {fileID: 6505152859428553889}
   - component: {fileID: 446989158239106033}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: DeffuserVase
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -640,9 +733,29 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 148389634393107631}
     m_Modifications:
+    - target: {fileID: 1021533670362824, guid: 76ba1ca0f3bd5de408854a87c409fe9c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 1096439096637868, guid: 76ba1ca0f3bd5de408854a87c409fe9c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 1552415391577364, guid: 76ba1ca0f3bd5de408854a87c409fe9c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
     - target: {fileID: 1673887000867892, guid: 76ba1ca0f3bd5de408854a87c409fe9c, type: 3}
       propertyPath: m_Name
       value: Candle Flame
+      objectReference: {fileID: 0}
+    - target: {fileID: 1673887000867892, guid: 76ba1ca0f3bd5de408854a87c409fe9c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 1897488928323968, guid: 76ba1ca0f3bd5de408854a87c409fe9c, type: 3}
+      propertyPath: m_Layer
+      value: 6
       objectReference: {fileID: 0}
     - target: {fileID: 4371298509140888, guid: 76ba1ca0f3bd5de408854a87c409fe9c, type: 3}
       propertyPath: m_RootOrder
@@ -750,9 +863,29 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 3619667176629236200}
     m_Modifications:
+    - target: {fileID: 1021533670362824, guid: 76ba1ca0f3bd5de408854a87c409fe9c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 1096439096637868, guid: 76ba1ca0f3bd5de408854a87c409fe9c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 1552415391577364, guid: 76ba1ca0f3bd5de408854a87c409fe9c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
     - target: {fileID: 1673887000867892, guid: 76ba1ca0f3bd5de408854a87c409fe9c, type: 3}
       propertyPath: m_Name
       value: Candle Flame
+      objectReference: {fileID: 0}
+    - target: {fileID: 1673887000867892, guid: 76ba1ca0f3bd5de408854a87c409fe9c, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 1897488928323968, guid: 76ba1ca0f3bd5de408854a87c409fe9c, type: 3}
+      propertyPath: m_Layer
+      value: 6
       objectReference: {fileID: 0}
     - target: {fileID: 4371298509140888, guid: 76ba1ca0f3bd5de408854a87c409fe9c, type: 3}
       propertyPath: m_RootOrder
