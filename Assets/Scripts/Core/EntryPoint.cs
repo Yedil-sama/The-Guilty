@@ -4,7 +4,9 @@ using TheGuilty.Core.Audio.Sfx;
 using TheGuilty.Core.Audio.Voice;
 using TheGuilty.Core.Directors;
 using TheGuilty.Core.GameEvents;
+using TheGuilty.Core.VisualEffects;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace TheGuilty.Core
 {
@@ -15,6 +17,10 @@ namespace TheGuilty.Core
 		[SerializeField] private AudioSource _sfxAudioSourcePrefab;
 		[SerializeField] private AudioSource _musicAudioSource;
 
+		[Header("Visual Effects")]
+		[SerializeField] private Volume _postProcessVolume;
+		[SerializeField] private Camera _playerCamera;
+
 		private GameEventBus _eventBus;
 
 		private IVoiceAudioService _voiceService;
@@ -23,6 +29,7 @@ namespace TheGuilty.Core
 
 		private NarrativeDirector _narrativeDirector;
 		private AudioDirector _audioDirector;
+		private VisualEffectsDirector _visualEffectsDirector;
 
 		private void Awake()
 		{
@@ -56,12 +63,15 @@ namespace TheGuilty.Core
 		{
 			_audioDirector = new AudioDirector(this);
 			_narrativeDirector = new NarrativeDirector(this);
+			_visualEffectsDirector = new VisualEffectsDirector(this, _postProcessVolume, _playerCamera);
 
 			ServiceLocator.Register(_audioDirector);
 			ServiceLocator.Register(_narrativeDirector);
+			ServiceLocator.Register(_visualEffectsDirector);
 
 			_audioDirector.Initialize();
 			_narrativeDirector.Initialize();
+			_visualEffectsDirector.Initialize();
 		}
 
 		private void StartGame()
