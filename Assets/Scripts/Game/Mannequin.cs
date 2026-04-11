@@ -7,7 +7,7 @@ namespace TheGuilty.Game
 	{
 		[Header("Components")]
 		[SerializeField] private Animator _animator;
-		[SerializeField] private Transform _hitbox;
+		[SerializeField] private BoxCollider _hitbox;
 		[SerializeField] private NavMeshAgent _navMeshAgent;
 
 		[Header("Movement")]
@@ -16,7 +16,7 @@ namespace TheGuilty.Game
 		[SerializeField] private float _rotationSpeed = 180f; // degrees per second
 
 		public Animator Animator => _animator;
-		public Transform Hitbox => _hitbox;
+		public BoxCollider Hitbox => _hitbox;
 		public NavMeshAgent NavMeshAgent => _navMeshAgent;
 		public float WalkSpeed => _walkSpeed;
 		public float QuiteWalkSpeed => _quiteWalkSpeed;

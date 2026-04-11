@@ -50,7 +50,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _animator: {fileID: 5685930004103902996}
-  _hitbox: {fileID: 6419853153656546043}
+  _hitbox: {fileID: 2853223443592331176}
   _navMeshAgent: {fileID: 3218806262709215076}
   _walkSpeed: 1
   _quiteWalkSpeed: 0.25
@@ -137,6 +137,7 @@ GameObject:
   m_Component:
   - component: {fileID: 6419853153656546043}
   - component: {fileID: 2853223443592331176}
+  - component: {fileID: 8405217604841183285}
   m_Layer: 0
   m_Name: Hitbox
   m_TagString: Untagged
@@ -180,6 +181,18 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 0.5}
   m_Center: {x: 0, y: 0, z: 0.25}
+--- !u!114 &8405217604841183285
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6284873354447738083}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ef426f948979f7948b45bcdb633feee2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1001 &2270639530352151173
 PrefabInstance:
   m_ObjectHideFlags: 0

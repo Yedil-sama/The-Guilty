@@ -8,7 +8,7 @@ namespace TheGuilty.Game
 		{
 			if (other.CompareTag("Player"))
 			{
-
+				Debug.LogWarning("YOU DEAD");
 			}
 		}
 	}
