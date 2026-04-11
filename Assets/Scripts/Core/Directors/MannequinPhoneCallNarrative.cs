@@ -1,27 +1,80 @@
+﻿using System.Collections;
 using TheGuilty.Core.GameEvents;
 using TheGuilty.Game;
 using UnityEngine;
+using UnityEngine.AI;
 
 namespace TheGuilty.Core.Directors
 {
 	public class MannequinPhoneCallNarrative : Narrative
 	{
-		private Mannequin _mannequin;
-		private Vector3 _phonePosition;
-		private AudioClip _phoneRingClip;
-		private AudioClip _voicelineClip;
-		private float _phoneRingVolume;
-		private Camera _playerCamera;
-		private EventMannequinTransformHolder _transformHolder;
-		private GameEventBus _eventBus;
+		private enum NarrativeMoveMode
+		{
+			None,
+			Idle,
+			QuietWalk,
+			Run
+		}
+
+		private readonly Mannequin _mannequin;
+		private readonly Vector3 _phonePosition;
+		private readonly AudioClip _phoneRingClip;
+		private readonly AudioClip _voicelineClip;
+		private readonly float _phoneRingVolume;
+		private readonly Camera _playerCamera;
+		private readonly EventMannequinTransformHolder _transformHolder;
+		private readonly GameEventBus _eventBus;
+		private readonly Transform _playerTransform;
 
 		private AudioSource _loopingPhoneAudio;
 		private AudioSource _voicelineAudio;
-		private bool _phonePickedUp = false;
-		private bool _mannequinTeleported = false;
-		private bool _mannequinWasVisible = true;
-		private float _elapsedTime = 0f;
-		private float _teleportTimeout = 10f;
+		private AudioSource _narrativeSfxAudio;
+
+		private AudioClip _zinClip;
+		private AudioClip _stringClip;
+
+		private bool _phonePickedUp;
+		private bool _phonePutDown;
+		private bool _voicelineFinished;
+
+		private bool _playerSawMannequin;
+		private bool _teleportSucceeded;
+		private bool _ambushAvailable;
+
+		private bool _playerSawOriginalSpotAfterTeleport;
+		private bool _zinPlayed;
+
+		private bool _shouldQuietWalkAfterPickup;
+		private bool _postCallPauseStarted;
+		private bool _postCallRunStarted;
+		private bool _runSequenceFinished;
+
+		private bool _afkChaseStarted;
+		private bool _afkPunishmentStarted;
+		private bool _isDisappearing;
+
+		private float _elapsedTime;
+		private float _ignorePhoneTimer;
+		private float _postCallPauseTimer;
+		private float _postCallRunTimer;
+		private float _afkChaseTimer;
+
+		private Vector3 _initialMannequinPosition;
+		private NarrativeMoveMode _currentMode = NarrativeMoveMode.None;
+
+		private const float InitialTeleportDelay = 10f;
+		private const float IgnorePhoneThreshold = 60f;
+		private const float PostCallPauseDuration = 1f;
+		private const float PostCallRunDuration = 10f;
+		private const float AfkChaseDuration = 20f;
+		private const float AfkDisappearDuration = 10f;
+		private const float ForcedTeleportDistance = 1.5f;
+		private const float LookAtOriginalSpotDistance = 5f;
+		private const float LookAtOriginalSpotAngle = 30f;
+		private const float MannequinSeenAngle = 35f;
+
+		private const string PhoneCallEventName = "PhoneCallEvent";
+		private const string FarAwayEventName = "FarAway";
 
 		public MannequinPhoneCallNarrative(
 			Mannequin mannequin,
@@ -31,7 +84,9 @@ namespace TheGuilty.Core.Directors
 			Camera playerCamera,
 			EventMannequinTransformHolder transformHolder,
 			GameEventBus eventBus,
+			MonoBehaviour coroutineHost,
 			float phoneRingVolume = 0.8f)
+			: base(coroutineHost)
 		{
 			_mannequin = mannequin;
 			_phonePosition = phonePosition;
@@ -41,101 +96,312 @@ namespace TheGuilty.Core.Directors
 			_playerCamera = playerCamera;
 			_transformHolder = transformHolder;
 			_eventBus = eventBus;
+			_playerTransform = playerCamera != null ? playerCamera.transform.root : null;
 		}
 
 		public override void Start()
 		{
-			Debug.Log($"[MannequinPhoneCallNarrative] Start called");
 			base.Start();
-			_elapsedTime = 0f;
 
-			if (_mannequin == null || _phoneRingClip == null || _playerCamera == null || _transformHolder == null)
+			_phonePickedUp = false;
+			_phonePutDown = false;
+			_voicelineFinished = false;
+
+			_playerSawMannequin = false;
+			_teleportSucceeded = false;
+			_ambushAvailable = false;
+
+			_playerSawOriginalSpotAfterTeleport = false;
+			_zinPlayed = false;
+
+			_shouldQuietWalkAfterPickup = false;
+			_postCallPauseStarted = false;
+			_postCallRunStarted = false;
+			_runSequenceFinished = false;
+
+			_afkChaseStarted = false;
+			_afkPunishmentStarted = false;
+			_isDisappearing = false;
+
+			_elapsedTime = 0f;
+			_ignorePhoneTimer = 0f;
+			_postCallPauseTimer = 0f;
+			_postCallRunTimer = 0f;
+			_afkChaseTimer = 0f;
+
+			_currentMode = NarrativeMoveMode.None;
+			_initialMannequinPosition = _mannequin != null ? _mannequin.transform.position : Vector3.zero;
+
+			if (_mannequin == null || _phoneRingClip == null || _playerCamera == null || _transformHolder == null || _eventBus == null)
 			{
-				Debug.Log($"[MannequinPhoneCallNarrative] Missing: Mannequin={_mannequin}, Clip={_phoneRingClip}, Camera={_playerCamera}, Holder={_transformHolder}");
+				Debug.LogError("[MannequinPhoneCallNarrative] Missing required references.");
 				_isComplete = true;
 				return;
 			}
 
-			// Set mannequin to idle
-			_mannequin.SetStrategy(new IdleStrategy());
-			_mannequin.ChangeState(MannequinState.Idle);
+			_zinClip = Resources.Load<AudioClip>("Audio/Sfx/zin");
+			_stringClip = Resources.Load<AudioClip>("Audio/Sfx/string");
 
-			// Start looping phone ring
+			CreateNarrativeAudioSource();
+
+			SetMode(NarrativeMoveMode.Idle);
+			DisableHitbox();
 			PlayLoopingPhoneRing();
 
-			// Subscribe to phone call events
 			_eventBus.Subscribe<PhoneCallStartedEvent>(OnPhoneCallStarted);
 			_eventBus.Subscribe<PhoneCallEndedEvent>(OnPhoneCallEnded);
-			Debug.Log("[MannequinPhoneCallNarrative] Subscribed to phone call events");
 		}
 
 		public override void Update()
 		{
-			if (!_isRunning) return;
+			if (!_isRunning || _isComplete || _isDisappearing)
+				return;
 
 			_elapsedTime += Time.deltaTime;
+			UpdateVoicelineFinishedState();
 
-			// Check if mannequin is visible in camera frustum
-			bool mannequinVisible = IsMannequinInCameraFrustum();
+			bool mannequinSeen = IsMannequinSeenByPlayer();
+			if (mannequinSeen)
+				_playerSawMannequin = true;
 
-			//Debug.Log($"[MannequinPhoneCallNarrative] Update: time={_elapsedTime:F1}, visible={mannequinVisible}, picked={_phonePickedUp}, teleported={_mannequinTeleported}");
-
-			// After 10 seconds
-			if (_elapsedTime >= _teleportTimeout)
+			// SIMPLE WANTED BEHAVIOR:
+			// After first 10 sec, if phone not picked up, keep checking every frame.
+			// First frame mannequin is not seen -> teleport.
+			if (!_phonePickedUp && !_teleportSucceeded && _elapsedTime >= InitialTeleportDelay)
 			{
-				if (_phonePickedUp)
+				if (!mannequinSeen)
 				{
-					// If phone picked up and mannequin visible, start quiet walk
-					if (mannequinVisible && !_mannequinTeleported)
-					{
-						Debug.Log("[MannequinPhoneCallNarrative] Phone picked up after 10s, mannequin visible, starting quiet walk towards player");
-						_mannequin.SetStrategy(new QuiteWalkStrategy());
-						_mannequin.ChangeState(MannequinState.Following);
+					_teleportSucceeded = TeleportToPhoneCallEvent();
 
-						// Enable hitbox for attack
-						BoxCollider hitbox = _mannequin.Hitbox.GetComponent<BoxCollider>();
-						if (hitbox != null)
-						{
-							hitbox.enabled = true;
-							Debug.Log("[MannequinPhoneCallNarrative] Hitbox enabled");
-						}
-					}
-				}
-				else
-				{
-					// If not picked up and mannequin out of frustum, teleport
-					if (!mannequinVisible && !_mannequinTeleported)
+					if (_teleportSucceeded)
 					{
-						Debug.Log($"[MannequinPhoneCallNarrative] Mannequin out of frustum after {_teleportTimeout}s, teleporting");
-						TeleportMannequinToPhoneCallPosition();
-						_mannequinTeleported = true;
+						_ambushAvailable = true;
+						SetMode(NarrativeMoveMode.Idle);
+						EnableHitbox();
 					}
 				}
 			}
 
-			_mannequinWasVisible = mannequinVisible;
+			// If player kept mannequin in view past 10 sec and then picked up the phone,
+			// only then mannequin should quiet walk.
+			if (_phonePickedUp && !_teleportSucceeded && _elapsedTime >= InitialTeleportDelay)
+			{
+				_shouldQuietWalkAfterPickup = true;
+			}
+
+			if (_teleportSucceeded && !_zinPlayed && !_playerSawOriginalSpotAfterTeleport)
+			{
+				if (IsPlayerLookingAtOriginalSpot())
+				{
+					_playerSawOriginalSpotAfterTeleport = true;
+					_zinPlayed = true;
+					PlayNarrativeSfx(_zinClip);
+				}
+			}
+
+			if (!_phonePickedUp)
+			{
+				_ignorePhoneTimer += Time.deltaTime;
+
+				if (_ignorePhoneTimer >= IgnorePhoneThreshold && !_afkChaseStarted && !_afkPunishmentStarted)
+				{
+					_afkChaseStarted = true;
+					_afkChaseTimer = 0f;
+					SetMode(NarrativeMoveMode.Run);
+					EnableHitbox();
+				}
+
+				if (_afkChaseStarted)
+				{
+					_afkChaseTimer += Time.deltaTime;
+
+					if (_afkChaseTimer >= AfkChaseDuration && !_afkPunishmentStarted)
+					{
+						_afkPunishmentStarted = true;
+						_afkChaseStarted = false;
+						StartRoutine(AfkPunishmentRoutine());
+					}
+				}
+
+				return;
+			}
+
+			if (_ambushAvailable)
+			{
+				SetMode(NarrativeMoveMode.Idle);
+				EnableHitbox();
+
+				if (_voicelineFinished)
+				{
+					DisappearFarAway();
+					_isComplete = true;
+				}
+
+				return;
+			}
+
+			if (_shouldQuietWalkAfterPickup && !_phonePutDown)
+			{
+				DisableHitbox();
+				SetMode(NarrativeMoveMode.QuietWalk);
+				return;
+			}
+
+			if (_shouldQuietWalkAfterPickup && _phonePutDown)
+			{
+				if (!_postCallPauseStarted)
+				{
+					_postCallPauseStarted = true;
+					_postCallPauseTimer = 0f;
+					SetMode(NarrativeMoveMode.Idle);
+					DisableHitbox();
+					PlayNarrativeSfx(_stringClip);
+					return;
+				}
+
+				if (_postCallPauseTimer < PostCallPauseDuration)
+				{
+					_postCallPauseTimer += Time.deltaTime;
+					return;
+				}
+
+				if (!_postCallRunStarted)
+				{
+					_postCallRunStarted = true;
+					_postCallRunTimer = 0f;
+					SetMode(NarrativeMoveMode.Run);
+					EnableHitbox();
+				}
+
+				_postCallRunTimer += Time.deltaTime;
+				if (_postCallRunTimer >= PostCallRunDuration && !_runSequenceFinished)
+				{
+					DisappearFarAway();
+					_runSequenceFinished = true;
+				}
+			}
+
+			if (_shouldQuietWalkAfterPickup)
+			{
+				if (_runSequenceFinished && _voicelineFinished)
+					_isComplete = true;
+			}
+			else
+			{
+				if (_voicelineFinished)
+					_isComplete = true;
+			}
 		}
 
-		private bool IsMannequinInCameraFrustum()
+		private void OnPhoneCallStarted(PhoneCallStartedEvent evt)
 		{
-			Renderer renderer = _mannequin.GetComponentInChildren<Renderer>();
-			if (renderer == null)
-			{
-				Debug.LogWarning("[MannequinPhoneCallNarrative] No renderer found on mannequin!");
-				return false;
-			}
+			if (_phonePickedUp)
+				return;
 
-			Plane[] frustumPlanes = GeometryUtility.CalculateFrustumPlanes(_playerCamera);
-			bool visible = GeometryUtility.TestPlanesAABB(frustumPlanes, renderer.bounds);
-			//Debug.Log($"[MannequinPhoneCallNarrative] Mannequin visible: {visible}, bounds: {renderer.bounds}");
-			return visible;
+			_phonePickedUp = true;
+			StopLoopingPhoneRing();
+			PlayVoiceline();
+		}
+
+		private void OnPhoneCallEnded(PhoneCallEndedEvent evt)
+		{
+			if (_phonePickedUp)
+				_phonePutDown = true;
+		}
+
+		private void UpdateVoicelineFinishedState()
+		{
+			if (_voicelineFinished || _voicelineAudio == null)
+				return;
+
+			if (!_voicelineAudio.isPlaying)
+				_voicelineFinished = true;
+		}
+
+		private void SetMode(NarrativeMoveMode mode)
+		{
+			if (_mannequin == null || _currentMode == mode)
+				return;
+
+			_currentMode = mode;
+
+			switch (mode)
+			{
+				case NarrativeMoveMode.Idle:
+					_mannequin.SetStrategy(new IdleStrategy());
+					_mannequin.ChangeState(MannequinState.Idle);
+					_mannequin.SafeResetPath();
+					break;
+
+				case NarrativeMoveMode.QuietWalk:
+					_mannequin.SafeResumeAgent();
+					_mannequin.SetStrategy(new QuiteWalkStrategy());
+					_mannequin.ChangeState(MannequinState.Following);
+					break;
+
+				case NarrativeMoveMode.Run:
+					_mannequin.SafeResumeAgent();
+					_mannequin.SetStrategy(new RunningStrategy());
+					_mannequin.ChangeState(MannequinState.Following);
+					break;
+			}
+		}
+
+		private bool IsMannequinSeenByPlayer()
+		{
+			if (_mannequin == null || _playerCamera == null)
+				return false;
+
+			Vector3 targetPos = _mannequin.Hitbox != null
+				? _mannequin.Hitbox.bounds.center
+				: _mannequin.transform.position + Vector3.up * 1.2f;
+
+			Vector3 viewport = _playerCamera.WorldToViewportPoint(targetPos);
+			if (viewport.z <= 0f)
+				return false;
+
+			if (viewport.x < 0f || viewport.x > 1f || viewport.y < 0f || viewport.y > 1f)
+				return false;
+
+			Vector3 dir = (targetPos - _playerCamera.transform.position).normalized;
+			float angle = Vector3.Angle(_playerCamera.transform.forward, dir);
+			return angle <= MannequinSeenAngle;
+		}
+
+		private bool IsPlayerLookingAtOriginalSpot()
+		{
+			if (_playerCamera == null)
+				return false;
+
+			Vector3 toSpot = _initialMannequinPosition - _playerCamera.transform.position;
+			float distance = toSpot.magnitude;
+			if (distance > LookAtOriginalSpotDistance)
+				return false;
+
+			float angle = Vector3.Angle(_playerCamera.transform.forward, toSpot.normalized);
+			return angle <= LookAtOriginalSpotAngle;
+		}
+
+		private void CreateNarrativeAudioSource()
+		{
+			GameObject go = new GameObject("PhoneCallNarrativeSFX");
+			_narrativeSfxAudio = go.AddComponent<AudioSource>();
+			_narrativeSfxAudio.playOnAwake = false;
+			_narrativeSfxAudio.loop = false;
+			_narrativeSfxAudio.spatialBlend = 0f;
+		}
+
+		private void PlayNarrativeSfx(AudioClip clip)
+		{
+			if (_narrativeSfxAudio != null && clip != null)
+				_narrativeSfxAudio.PlayOneShot(clip);
 		}
 
 		private void PlayLoopingPhoneRing()
 		{
-			Debug.Log("[MannequinPhoneCallNarrative] PlayLoopingPhoneRing called");
 			GameObject audioObject = new GameObject("PhoneRingSFX_Loop");
 			audioObject.transform.position = _phonePosition;
+
 			_loopingPhoneAudio = audioObject.AddComponent<AudioSource>();
 			_loopingPhoneAudio.clip = _phoneRingClip;
 			_loopingPhoneAudio.volume = _phoneRingVolume;
@@ -143,99 +409,126 @@ namespace TheGuilty.Core.Directors
 			_loopingPhoneAudio.maxDistance = 50f;
 			_loopingPhoneAudio.loop = true;
 			_loopingPhoneAudio.Play();
+		}
 
-			Debug.Log($"[MannequinPhoneCallNarrative] Phone ring started at {_phonePosition}, clip length: {_phoneRingClip.length}, volume: {_phoneRingVolume}");
+		private void StopLoopingPhoneRing()
+		{
+			if (_loopingPhoneAudio != null)
+			{
+				Object.Destroy(_loopingPhoneAudio.gameObject);
+				_loopingPhoneAudio = null;
+			}
 		}
 
 		private void PlayVoiceline()
 		{
-			Debug.Log("[MannequinPhoneCallNarrative] Playing voiceline");
-			GameObject audioObject = new GameObject("VoicelineSFX");
+			if (_voicelineClip == null)
+				return;
+
+			GameObject audioObject = new GameObject("PhoneVoicelineSFX");
 			audioObject.transform.position = _phonePosition;
+
 			_voicelineAudio = audioObject.AddComponent<AudioSource>();
 			_voicelineAudio.clip = _voicelineClip;
 			_voicelineAudio.volume = 1f;
 			_voicelineAudio.spatialBlend = 1f;
 			_voicelineAudio.maxDistance = 50f;
+			_voicelineAudio.loop = false;
 			_voicelineAudio.Play();
-
-			// Schedule narrative end after voiceline
-			_mannequin.StartCoroutine(EndNarrativeAfterVoiceline());
 		}
 
-		private System.Collections.IEnumerator EndNarrativeAfterVoiceline()
+		private IEnumerator AfkPunishmentRoutine()
 		{
-			yield return new WaitForSeconds(_voicelineClip.length);
-			Debug.Log("[MannequinPhoneCallNarrative] Voiceline finished, ending narrative");
+			_isDisappearing = true;
+			DisappearFarAway();
+
+			yield return new WaitForSeconds(AfkDisappearDuration);
+
+			if (_mannequin == null || _playerTransform == null)
+			{
+				_isComplete = true;
+				yield break;
+			}
+
+			Vector3 spawnPos = _playerTransform.position + _playerTransform.forward * ForcedTeleportDistance;
+
+			if (NavMesh.SamplePosition(spawnPos, out NavMeshHit navHit, 2f, NavMesh.AllAreas))
+			{
+				spawnPos = navHit.position;
+			}
+
+			Vector3 lookDir = _playerTransform.position - spawnPos;
+			lookDir.y = 0f;
+			Quaternion rot = lookDir.sqrMagnitude > 0.001f
+				? Quaternion.LookRotation(lookDir.normalized)
+				: Quaternion.identity;
+
+			_mannequin.TeleportToPosition(spawnPos, rot);
+			SetMode(NarrativeMoveMode.Idle);
+			EnableHitbox();
+
 			_isComplete = true;
 		}
 
-		private void TeleportMannequinToPhoneCallPosition()
+		private bool TeleportToPhoneCallEvent()
 		{
-			Transform teleportPos = _transformHolder.GetRandomPositionForEvent("PhoneCallEvent");
+			Transform teleportPos = _transformHolder.GetRandomPositionForEvent(PhoneCallEventName);
 			if (teleportPos == null)
 			{
-				Debug.Log("[MannequinPhoneCallNarrative] PhoneCallEvent position not found!");
+				Debug.LogWarning($"[MannequinPhoneCallNarrative] Event position '{PhoneCallEventName}' not found.");
+				return false;
+			}
+
+			Vector3 before = _mannequin.transform.position;
+			_mannequin.TeleportTo(teleportPos);
+
+			float distanceToTarget = Vector3.Distance(_mannequin.transform.position, teleportPos.position);
+			float movedDistance = Vector3.Distance(before, _mannequin.transform.position);
+
+			return distanceToTarget <= 2.5f || movedDistance > 0.5f;
+		}
+
+		private void DisappearFarAway()
+		{
+			Transform farAway = _transformHolder.GetRandomPositionForEvent(FarAwayEventName);
+			if (farAway == null)
+			{
+				Debug.LogWarning($"[MannequinPhoneCallNarrative] Event position '{FarAwayEventName}' not found.");
+				SetMode(NarrativeMoveMode.Idle);
+				DisableHitbox();
 				return;
 			}
 
-			_mannequin.TeleportTo(teleportPos);
+			_mannequin.TeleportTo(farAway);
+			SetMode(NarrativeMoveMode.Idle);
+			DisableHitbox();
 		}
 
-		private void OnPhoneCallStarted(PhoneCallStartedEvent evt)
+		private void EnableHitbox()
 		{
-			_phonePickedUp = true;
-			Debug.Log("[MannequinPhoneCallNarrative] Phone picked up!");
-
-			// Stop looping phone ring
-			if (_loopingPhoneAudio != null)
-			{
-				Object.Destroy(_loopingPhoneAudio.gameObject);
-				_loopingPhoneAudio = null;
-			}
-
-			// Play voiceline
-			PlayVoiceline();
+			if (_mannequin?.Hitbox != null)
+				_mannequin.Hitbox.enabled = true;
 		}
 
-		private void OnPhoneCallEnded(PhoneCallEndedEvent evt)
+		private void DisableHitbox()
 		{
-			Debug.Log("[MannequinPhoneCallNarrative] Phone call ended, switching to running chase mode");
-
-			// Switch to running strategy for chase
-			_mannequin.SetStrategy(new RunningStrategy());
-			_mannequin.ChangeState(MannequinState.Following);
-
-			// Enable hitbox for attack
-			BoxCollider hitbox = _mannequin.Hitbox.GetComponent<BoxCollider>();
-			if (hitbox != null)
-			{
-				hitbox.enabled = true;
-				Debug.Log("[MannequinPhoneCallNarrative] Hitbox enabled for running chase");
-			}
+			if (_mannequin?.Hitbox != null)
+				_mannequin.Hitbox.enabled = false;
 		}
 
 		public override void End()
 		{
-			Debug.Log("[MannequinPhoneCallNarrative] Ending narrative");
+			_eventBus?.Unsubscribe<PhoneCallStartedEvent>(OnPhoneCallStarted);
+			_eventBus?.Unsubscribe<PhoneCallEndedEvent>(OnPhoneCallEnded);
 
-			// Unsubscribe from events
-			_eventBus.Unsubscribe<PhoneCallStartedEvent>(OnPhoneCallStarted);
-			_eventBus.Unsubscribe<PhoneCallEndedEvent>(OnPhoneCallEnded);
-
-			// Clean up looping audio
 			if (_loopingPhoneAudio != null)
-			{
 				Object.Destroy(_loopingPhoneAudio.gameObject);
-				_loopingPhoneAudio = null;
-			}
 
-			// Clean up voiceline audio
 			if (_voicelineAudio != null)
-			{
 				Object.Destroy(_voicelineAudio.gameObject);
-				_voicelineAudio = null;
-			}
+
+			if (_narrativeSfxAudio != null)
+				Object.Destroy(_narrativeSfxAudio.gameObject);
 
 			base.End();
 		}

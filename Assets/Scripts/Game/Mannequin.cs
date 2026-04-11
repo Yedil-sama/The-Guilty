@@ -13,7 +13,10 @@ namespace TheGuilty.Game
 		[Header("Movement")]
 		[SerializeField] private float _walkSpeed = 2f;
 		[SerializeField] private float _quiteWalkSpeed = 1f;
-		[SerializeField] private float _rotationSpeed = 180f; // degrees per second
+		[SerializeField] private float _rotationSpeed = 180f;
+
+		[Header("Teleport")]
+		[SerializeField] private float _navMeshSampleDistance = 2.5f;
 
 		public Animator Animator => _animator;
 		public BoxCollider Hitbox => _hitbox;
@@ -29,23 +32,21 @@ namespace TheGuilty.Game
 		private void Awake()
 		{
 			_stateMachine = new MannequinStateMachine(this);
-			_currentStrategy = new IdleStrategy(); // Default strategy
+			_currentStrategy = new IdleStrategy();
 
 			if (_navMeshAgent == null)
 			{
 				_navMeshAgent = GetComponent<NavMeshAgent>();
 			}
 
-			// Configure NavMeshAgent
 			if (_navMeshAgent != null)
 			{
 				_navMeshAgent.updatePosition = true;
-				_navMeshAgent.updateRotation = false; // We handle rotation manually
+				_navMeshAgent.updateRotation = false;
 				_navMeshAgent.stoppingDistance = 0.1f;
 				_navMeshAgent.autoBraking = false;
 			}
 
-			// Disable root motion for NavMesh movement
 			if (_animator != null)
 			{
 				_animator.applyRootMotion = false;
@@ -105,18 +106,94 @@ namespace TheGuilty.Game
 			_stateMachine.ChangeState(newState);
 		}
 
-		public void TeleportTo(Transform targetTransform)
+		public void SafeResetPath()
 		{
-			transform.position = targetTransform.position;
-			transform.rotation = targetTransform.rotation;
-			if (_navMeshAgent != null)
+			if (_navMeshAgent == null)
+				return;
+
+			if (!_navMeshAgent.enabled)
+				return;
+
+			if (!_navMeshAgent.isOnNavMesh)
+				return;
+
+			_navMeshAgent.ResetPath();
+			_navMeshAgent.isStopped = true;
+			_navMeshAgent.velocity = Vector3.zero;
+		}
+
+		public void SafeResumeAgent()
+		{
+			if (_navMeshAgent == null)
+				return;
+
+			if (!_navMeshAgent.enabled)
+				return;
+
+			if (!_navMeshAgent.isOnNavMesh)
+				return;
+
+			_navMeshAgent.isStopped = false;
+		}
+
+		public bool TeleportTo(Transform targetTransform)
+		{
+			if (targetTransform == null)
 			{
-				_navMeshAgent.Warp(targetTransform.position);
+				Debug.LogWarning("[Mannequin] TeleportTo failed: targetTransform is null.");
+				return false;
 			}
+
+			return TeleportToPosition(targetTransform.position, targetTransform.rotation);
+		}
+
+		public bool TeleportToPosition(Vector3 targetPosition, Quaternion targetRotation)
+		{
+			Vector3 finalPosition = targetPosition;
+
+			// Try to find a valid point on NavMesh near the target.
+			if (NavMesh.SamplePosition(targetPosition, out NavMeshHit navHit, _navMeshSampleDistance, NavMesh.AllAreas))
+			{
+				finalPosition = navHit.position;
+			}
+			else
+			{
+				Debug.LogWarning($"[Mannequin] Teleport target is not near NavMesh. Target: {targetPosition}");
+			}
+
+			// Move transform first so visual position is always updated.
+			transform.position = finalPosition;
+			transform.rotation = targetRotation;
+
+			if (_navMeshAgent == null || !_navMeshAgent.enabled)
+				return true;
+
+			// Warp only if the agent is currently on a NavMesh or can be snapped close enough.
+			if (_navMeshAgent.isOnNavMesh)
+			{
+				bool warped = _navMeshAgent.Warp(finalPosition);
+				if (!warped)
+				{
+					Debug.LogWarning($"[Mannequin] NavMeshAgent.Warp failed at position {finalPosition}");
+					return false;
+				}
+
+				_navMeshAgent.ResetPath();
+				_navMeshAgent.isStopped = true;
+				_navMeshAgent.velocity = Vector3.zero;
+				return true;
+			}
+
+			// If the agent is not on NavMesh, try enabling after moving onto sampled point.
+			// Sometimes just moving transform onto the mesh is enough for next frame.
+			Debug.LogWarning("[Mannequin] Agent is not currently on NavMesh after teleport. Transform moved, but agent warp was skipped.");
+			return false;
 		}
 
 		public void SetWalkingAnimation(bool isWalking, bool isQuiteWalking = false)
 		{
+			if (_animator == null) return;
+
 			_animator.SetBool("IsWalking", isWalking);
 			_animator.SetBool("IsQuiteWalking", isQuiteWalking);
 		}

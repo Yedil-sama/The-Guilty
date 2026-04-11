@@ -81,7 +81,16 @@ namespace TheGuilty.Core.Directors
 				playerCamera: playerCamera,
 				transformHolder: transformHolder,
 				eventBus: eventBus,
+				coroutineHost: _coroutineHost,
 				phoneRingVolume: 0.8f
+			));
+
+			_narratives.Add(new MirrorMannequinNarrative(
+				mannequin: mannequin,
+				mirror: sceneProvider.MirrorObserver,
+				player: player.transform,
+				holder: transformHolder,
+				coroutineHost: _coroutineHost
 			));
 
 			// Add more narratives here as needed

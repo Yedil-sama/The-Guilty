@@ -7,11 +7,14 @@ namespace TheGuilty.Game
 {
 	public class PhoneInteractionHandler : MonoBehaviour
 	{
+		[SerializeField] private string _callId = "IntroCall";
+
 		private GameEventBus _eventBus;
 
 		private void Start()
 		{
-			_eventBus = TheGuilty.Core.ServiceLocator.Get<GameEventBus>();
+			_eventBus = ServiceLocator.Get<GameEventBus>();
+
 			InteractableItem interactableItem = GetComponent<InteractableItem>();
 			if (interactableItem != null)
 			{
@@ -26,14 +29,12 @@ namespace TheGuilty.Game
 
 		private void OnPhoneExamined()
 		{
-			Debug.Log("[PhoneInteractionHandler] Phone examined, publishing PhoneCallStartedEvent");
-			_eventBus.Publish(new PhoneCallStartedEvent());
+			_eventBus.Publish(new PhoneCallStartedEvent(_callId));
 		}
 
 		private void OnPhoneExaminationEnded()
 		{
-			Debug.Log("[PhoneInteractionHandler] Phone examination ended, publishing PhoneCallEndedEvent");
-			_eventBus.Publish(new PhoneCallEndedEvent());
+			_eventBus.Publish(new PhoneCallEndedEvent(_callId));
 		}
 	}
 }
