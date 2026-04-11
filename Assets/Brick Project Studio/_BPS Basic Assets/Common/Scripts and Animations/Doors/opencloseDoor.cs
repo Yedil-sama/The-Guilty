@@ -1,72 +1,98 @@
 ﻿using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
+using UHFPS.Input;
+using UHFPS.Runtime;
 
 namespace SojaExiles
 
 {
-	public class opencloseDoor : MonoBehaviour
+	public class OpenCloseDoor : MonoBehaviour
 	{
+		[SerializeField] private Animator _animator;
+		[SerializeField] private bool _isOpen;
+		[SerializeField] private Transform _player;
+		[SerializeField] private float _interactionDistance = 15f;
+		[SerializeField] private string _openAnimation = "Opening";
+		[SerializeField] private string _closeAnimation = "Closing";
+		[SerializeField] private float _animationDelay = 0.5f;
 
-		public Animator openandclose;
-		public bool open;
-		public Transform Player;
-
-		void Start()
+		public Animator Animator => _animator;
+		public bool IsOpen
 		{
-			open = false;
+			get => _isOpen;
+			private set => _isOpen = value;
+		}
+		public Transform Player => _player;
+		public float InteractionDistance
+		{
+			get => _interactionDistance;
+			set => _interactionDistance = value;
+		}
+		public string OpenAnimation => _openAnimation;
+		public string CloseAnimation => _closeAnimation;
+		public float AnimationDelay => _animationDelay;
+
+		private void Start()
+		{
+			IsOpen = false;
+			TryAssignPlayer();
 		}
 
-		void OnMouseOver()
+		private void TryAssignPlayer()
 		{
+			if (_player != null)
+				return;
+
+			try
 			{
-				if (Player)
-				{
-					float dist = Vector3.Distance(Player.position, transform.position);
-					if (dist < 15)
-					{
-						if (open == false)
-						{
-							if (Input.GetMouseButtonDown(0))
-							{
-								StartCoroutine(opening());
-							}
-						}
-						else
-						{
-							if (open == true)
-							{
-								if (Input.GetMouseButtonDown(0))
-								{
-									StartCoroutine(closing());
-								}
-							}
-
-						}
-
-					}
-				}
-
+				_player = PlayerManager.Instance.transform;
 			}
-
+			catch
+			{
+				// PlayerManager may not be initialized yet.
+			}
 		}
 
-		IEnumerator opening()
+		private void OnMouseOver()
 		{
-			print("you are opening the door");
-			openandclose.Play("Opening");
-			open = true;
-			yield return new WaitForSeconds(.5f);
+			if (_player == null)
+				TryAssignPlayer();
+
+			if (_player == null)
+				return;
+
+			if (Vector3.Distance(_player.position, transform.position) > _interactionDistance)
+				return;
+
+			if (!InputManager.ReadButtonOnce(this, Controls.USE))
+				return;
+
+			if (!IsOpen)
+				StartCoroutine(OpenDoorCoroutine());
+			else
+				StartCoroutine(CloseDoorCoroutine());
 		}
 
-		IEnumerator closing()
+		private IEnumerator OpenDoorCoroutine()
 		{
-			print("you are closing the door");
-			openandclose.Play("Closing");
-			open = false;
-			yield return new WaitForSeconds(.5f);
+			if (_animator == null)
+				yield break;
+
+			Debug.Log("Opening door");
+			_animator.Play(_openAnimation);
+			IsOpen = true;
+			yield return new WaitForSeconds(_animationDelay);
 		}
 
+		private IEnumerator CloseDoorCoroutine()
+		{
+			if (_animator == null)
+				yield break;
 
+			Debug.Log("Closing door");
+			_animator.Play(_closeAnimation);
+			IsOpen = false;
+			yield return new WaitForSeconds(_animationDelay);
+		}
 	}
 }

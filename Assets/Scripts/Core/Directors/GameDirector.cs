@@ -1,5 +1,7 @@
 ﻿using TheGuilty.Core.GameEvents;
+using TheGuilty.Game;
 using UnityEngine;
+using Debug = UnityEngine.Debug;
 
 namespace TheGuilty.Core.Directors
 {
@@ -16,14 +18,39 @@ namespace TheGuilty.Core.Directors
 
 		protected override void OnInitialize()
 		{
+			Debug.Log("[GameDirector] OnInitialize");
 			_eventBus.Subscribe<GameStartedEvent>(OnGameStarted);
 		}
 
 		private void OnGameStarted(GameStartedEvent gameStartedEvent)
 		{
 			Debug.Log("GameDirector: Game started, triggering intro sequence...");
+		}
 
-			_narrativeDirector.StartCall("IntroCall");
+		public void TriggerMannequinEvent(string eventName, IMannequinStrategy strategy)
+		{
+			Debug.Log("mannequinevent triggered");
+			SceneObjectProviderService sceneProvider = ServiceLocator.Get<SceneObjectProviderService>();
+
+			Mannequin mannequin = sceneProvider.Mannequin;
+			EventMannequinTransformHolder transformHolder = sceneProvider.TransformHolder;
+
+			if (mannequin == null || transformHolder == null)
+			{
+				Debug.LogError("GameDirector: Cannot trigger mannequin event - missing references!");
+				return;
+			}
+
+			Transform position = transformHolder.GetRandomPositionForEvent(eventName);
+			if (position != null)
+			{
+				mannequin.TeleportTo(position);
+				mannequin.SetStrategy(strategy);
+			}
+			else
+			{
+				Debug.Log($"GameDirector: Event '{eventName}' has no positions defined!");
+			}
 		}
 	}
 }

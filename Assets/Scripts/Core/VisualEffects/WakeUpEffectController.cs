@@ -122,7 +122,7 @@ namespace TheGuilty.Core.VisualEffects
 			{
 				_vignette.intensity.value = _startVignetteIntensity;
 				_vignette.smoothness.value = 0.3f;
-				_vignette.rounded.value = 0;
+				_vignette.rounded.value = false;
 			}
 
 			if (_chromaticAberration != null)

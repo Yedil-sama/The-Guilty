@@ -121,9 +121,9 @@ namespace UHFPS.Tools
         /// </summary>
         public static void SetRenderingLayer(this GameObject obj, uint layer, bool set = true)
         {
-            if (layer < 0 || layer > 31)
+            if (layer > 31)
             {
-                Debug.LogError("Invalid layer value. Must be between 0 and 31.");
+                Debug.LogError("Invalid rendering layer value. Must be between 0 and 31.");
                 return;
             }
 
@@ -270,6 +270,9 @@ namespace UHFPS.Tools
         /// </summary>
         public static bool CompareLayer(this LayerMask layermask, int layer)
         {
+            if (layer < 0 || layer > 31)
+                return false;
+
             return layermask == (layermask | (1 << layer));
         }
 

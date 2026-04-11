@@ -1,573 +1,603 @@
 using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
 using UHFPS.Input;
 using UHFPS.Tools;
+using UnityEngine;
 using UnityEngine.UI;
 using static UHFPS.Runtime.InteractableItem;
 
 namespace UHFPS.Runtime
 {
-    [RequireComponent(typeof(InteractController))]
-    public class ExamineController : PlayerComponent
-    {
-        public sealed class ExaminedObject
-        {
-            public InteractableItem InteractableItem;
-            public ExaminePutter.PutSettings PutSettings;
-            public Vector3 HoldPosition;
-            public Vector3 StartPosition;
-            public Quaternion StartRotation;
-            public Vector3 ControlPoint;
-            public float ExamineDistance;
-            public float Velocity;
-            public float t;
+	[RequireComponent(typeof(InteractController))]
+	public class ExamineController : PlayerComponent
+	{
+		public sealed class ExaminedObject
+		{
+			public InteractableItem InteractableItem;
+			public ExaminePutter.PutSettings PutSettings;
+			public Vector3 HoldPosition;
+			public Vector3 StartPosition;
+			public Quaternion StartRotation;
+			public Vector3 ControlPoint;
+			public float ExamineDistance;
+			public float Velocity;
+			public float t;
 
-            public GameObject GameObject => InteractableItem.gameObject;
-        }
+			public GameObject GameObject => InteractableItem.gameObject;
+		}
 
-        public LayerMask FocusCullLayes;
-        public Layer FocusLayer;
-        public uint FocusRenderingLayer;
+		public LayerMask FocusCullLayes;
+		public Layer FocusLayer;
+		public uint FocusRenderingLayer;
 
-        public Light ExamineLight;
-        public GameObject HotspotPrefab;
+		public Light ExamineLight;
+		public GameObject HotspotPrefab;
 
-        public ControlsContext ControlPutBack;
-        public ControlsContext ControlRead;
-        public ControlsContext ControlTake;
-        public ControlsContext ControlRotate;
-        public ControlsContext ControlZoom;
+		public ControlsContext ControlPutBack;
+		public ControlsContext ControlRead;
+		public ControlsContext ControlTake;
+		public ControlsContext ControlRotate;
+		public ControlsContext ControlZoom;
 
-        public float RotateTime = 0.1f;
-        public float RotateMultiplier = 3f;
-        public float ZoomMultiplier = 0.1f;
-        public float TimeToExamine = 2f;
+		public float RotateTime = 0.1f;
+		public float RotateMultiplier = 3f;
+		public float ZoomMultiplier = 0.1f;
+		public float TimeToExamine = 2f;
 
-        public Vector3 DropOffset;
-        public Vector3 InventoryOffset;
-        public bool ShowLabels = true;
+		public Vector3 DropOffset;
+		public Vector3 InventoryOffset;
+		public bool ShowLabels = true;
 
-        public AnimationCurve PickUpCurve = new(new Keyframe(0, 0), new Keyframe(1, 0));
-        public float PickUpCurveMultiplier = 1f;
-        public float PickUpTime = 0.2f;
+		public AnimationCurve PickUpCurve = new(new Keyframe(0, 0), new Keyframe(1, 0));
+		public float PickUpCurveMultiplier = 1f;
+		public float PickUpTime = 0.2f;
 
-        public AnimationCurve PutPositionCurve = new(new Keyframe(0, 0), new Keyframe(1, 0));
-        public float PutPositionCurveMultiplier = 1f;
-        public float PutPositionCurveTime = 0.1f;
+		public AnimationCurve PutPositionCurve = new(new Keyframe(0, 0), new Keyframe(1, 0));
+		public float PutPositionCurveMultiplier = 1f;
+		public float PutPositionCurveTime = 0.1f;
 
-        public AnimationCurve PutRotationCurve = new(new Keyframe(0, 0), new Keyframe(1, 0));
-        public float PutRotationCurveMultiplier = 1f;
-        public float PutRotationCurveTime = 0.1f;
+		public AnimationCurve PutRotationCurve = new(new Keyframe(0, 0), new Keyframe(1, 0));
+		public float PutRotationCurveMultiplier = 1f;
+		public float PutRotationCurveTime = 0.1f;
 
-        public SoundClip ExamineHintSound;
+		public SoundClip ExamineHintSound;
 
-        public Vector3 DropPosition => transform.TransformPoint(DropOffset);
-        public Vector3 InventoryPosition => transform.TransformPoint(InventoryOffset);
+		public Vector3 DropPosition => transform.TransformPoint(DropOffset);
+		public Vector3 InventoryPosition => transform.TransformPoint(InventoryOffset);
 
-        public bool IsExamining { get; private set; }
+		public bool IsExamining { get; private set; }
 
-        private GameManager gameManager;
-        private InteractController interactController;
+		private GameManager gameManager;
+		private InteractController interactController;
 
-        private readonly Stack<ExaminedObject> examinedObjects = new();
-        private ExaminedObject currentExamine;
-        private Image examineHotspot;
+		private readonly Stack<ExaminedObject> examinedObjects = new();
+		private ExaminedObject currentExamine;
+		private Image examineHotspot;
 
-        private bool isInventoryExamine;
-        private bool isPointerShown;
-        private bool isReadingPaper;
-        private bool isHotspotPressed;
+		private bool isInventoryExamine;
+		private bool isPointerShown;
+		private bool isReadingPaper;
+		private bool isHotspotPressed;
 
-        private float defaultLightIntensity;
-        private Color defaultLightColor;
+		private float defaultLightIntensity;
+		private Color defaultLightColor;
 
-        private Vector2 examineRotate;
-        private Vector2 rotateVelocity;
+		private Vector2 examineRotate;
+		private Vector2 rotateVelocity;
 
-        private void Awake()
-        {
-            gameManager = GameManager.Instance;
-            interactController = GetComponent<InteractController>();
+		private void Awake()
+		{
+			gameManager = GameManager.Instance;
+			interactController = GetComponent<InteractController>();
 
-            defaultLightIntensity = ExamineLight.intensity;
-            defaultLightColor = ExamineLight.color;
-        }
+			defaultLightIntensity = ExamineLight.intensity;
+			defaultLightColor = ExamineLight.color;
+		}
 
-        private void Start()
-        {
-            ControlPutBack.InteractName.SubscribeGloc();
-            ControlRead.InteractName.SubscribeGloc();
-            ControlTake.InteractName.SubscribeGloc();
-            ControlRotate.InteractName.SubscribeGloc();
-            ControlZoom.InteractName.SubscribeGloc();
-        }
+		private void Start()
+		{
+			ControlPutBack.InteractName.SubscribeGloc();
+			ControlRead.InteractName.SubscribeGloc();
+			ControlTake.InteractName.SubscribeGloc();
+			ControlRotate.InteractName.SubscribeGloc();
+			ControlZoom.InteractName.SubscribeGloc();
+		}
 
-        private void Update()
-        {
-            if (gameManager.IsInventoryShown || gameManager.IsPaused)
-                return;
+		private void Update()
+		{
+			if (gameManager.IsInventoryShown || gameManager.IsPaused)
+				return;
 
-            if (interactController.RaycastObject != null || IsExamining)
-            {
-                if (InputManager.ReadButtonOnce(GetInstanceID(), Controls.EXAMINE))
-                {
-                    if (!IsExamining)
-                    {
-                        GameObject raycastObj = interactController.RaycastObject;
-                        if (!raycastObj.GetComponent<ExaminePutter>())
-                            StartExamine(raycastObj);
-                    }
-                    else
-                    {
-                        PopExaminedObject();
-                    }
-                }
-            }
+			if (interactController.RaycastObject != null || IsExamining)
+			{
+				if (InputManager.ReadButtonOnce(GetInstanceID(), Controls.EXAMINE))
+				{
+					if (!IsExamining)
+					{
+						GameObject raycastObj = interactController.RaycastObject;
+						if (!raycastObj.GetComponent<ExaminePutter>())
+						{
+							Debug.Log(raycastObj);
+							StartExamine(raycastObj);
 
-            if (IsExamining) ExamineHold();
-        }
+						}
+					}
+					else
+					{
+						PopExaminedObject();
+					}
+				}
+			}
 
-        public void SetExamineLight(float intensity)
-        {
-            ExamineLight.intensity = intensity;
-        }
+			if (IsExamining) ExamineHold();
+		}
 
-        public void SetExamineLight(Color color)
-        {
-            ExamineLight.color = color;
-        }
+		public void SetExamineLight(float intensity)
+		{
+			ExamineLight.intensity = intensity;
+		}
 
-        public void SetExamineLight(float intensity, Color color)
-        {
-            ExamineLight.intensity = intensity;
-            ExamineLight.color = color;
-        }
+		public void SetExamineLight(Color color)
+		{
+			ExamineLight.color = color;
+		}
 
-        public void ResetExamineLight()
-        {
-            ExamineLight.intensity = defaultLightIntensity;
-            ExamineLight.color = defaultLightColor;
-        }
+		public void SetExamineLight(float intensity, Color color)
+		{
+			ExamineLight.intensity = intensity;
+			ExamineLight.color = color;
+		}
 
-        public void ExamineFromInventory(GameObject obj)
-        {
-            isInventoryExamine = true;
-            StartExamine(obj);
-        }
+		public void ResetExamineLight()
+		{
+			ExamineLight.intensity = defaultLightIntensity;
+			ExamineLight.color = defaultLightColor;
+		}
 
-        private void StartExamine(GameObject obj)
-        {
-            if (obj.TryGetComponent(out InteractableItem interactableItem))
-            {
-                if (interactableItem.ExamineType == ExamineTypeEnum.None)
-                    return;
+		public void ExamineFromInventory(GameObject obj)
+		{
+			isInventoryExamine = true;
+			StartExamine(obj);
+		}
 
-                ExamineObject(interactableItem);
-                gameManager.SetBlur(true, true);
-                gameManager.FreezePlayer(true);
-                gameManager.DisableAllGamePanels();
+		private void StartExamine(GameObject obj)
+		{
+			if (obj.TryGetComponent(out InteractableItem interactableItem))
+			{
+				if (interactableItem.ExamineType == ExamineTypeEnum.None)
+					return;
 
-                ShowBottomControls(interactableItem);
-                IsExamining = true;
-            }
-        }
+				ExamineObject(interactableItem);
+				gameManager.SetBlur(true, true);
+				gameManager.FreezePlayer(true);
+				gameManager.DisableAllGamePanels();
 
-        private void ShowBottomControls(InteractableItem interactableItem)
-        {
-            List<ControlsContext> controls = new()
-            {
-                ControlPutBack // default put back button info
+				ShowBottomControls(interactableItem);
+				IsExamining = true;
+			}
+		}
+
+		private void ShowBottomControls(InteractableItem interactableItem)
+		{
+			List<ControlsContext> controls = new()
+			{
+				ControlPutBack // default put back button info
             };
 
-            // read paper or take object info
-            if (interactableItem.IsPaper) controls.Add(ControlRead);
-            else if (interactableItem.TakeFromExamine) controls.Add(ControlTake);
+			// read paper or take object info
+			if (interactableItem.IsPaper) controls.Add(ControlRead);
+			else if (interactableItem.TakeFromExamine) controls.Add(ControlTake);
 
-            // rotate object info
-            if (interactableItem.ExamineRotate != ExamineRotateEnum.Static)
-                controls.Add(ControlRotate);
+			// rotate object info
+			if (interactableItem.ExamineRotate != ExamineRotateEnum.Static)
+				controls.Add(ControlRotate);
 
-            // zoom object info
-            if (interactableItem.UseExamineZooming)
-                controls.Add(ControlZoom);
+			// zoom object info
+			if (interactableItem.UseExamineZooming)
+				controls.Add(ControlZoom);
 
-            gameManager.ShowControlsInfo(true, controls.ToArray());
-        }
+			gameManager.ShowControlsInfo(true, controls.ToArray());
+		}
 
-        private void ExamineObject(InteractableItem interactableItem)
-        {
-            if (interactableItem == null) return;
-            currentExamine?.GameObject.SetLayerRecursively(interactController.InteractLayer);
+		private Vector3 GetExamineCenterOffset(InteractableItem interactableItem)
+		{
+			Renderer[] renderers = interactableItem.GetComponentsInChildren<Renderer>();
+			if (renderers.Length > 0)
+			{
+				Bounds bounds = renderers[0].bounds;
+				for (int i = 1; i < renderers.Length; i++)
+					bounds.Encapsulate(renderers[i].bounds);
 
-            Vector3 controlPoint = interactableItem.UseControlPoint ? interactableItem.ControlPoint : Vector3.zero;
-            Vector3 controlOffset = Quaternion.LookRotation(MainCamera.transform.forward) * controlPoint;
-            Vector3 holdPosition = MainCamera.transform.position + MainCamera.transform.forward * interactableItem.ExamineDistance;
+				return bounds.center - interactableItem.transform.position;
+			}
 
-            // transform settings
-            var transformSettings = new ExaminePutter.TransformSettings(
-                interactableItem.transform.position,
-                interactableItem.transform.rotation,
-                controlOffset
-            );
+			Collider[] colliders = interactableItem.GetComponentsInChildren<Collider>();
+			if (colliders.Length > 0)
+			{
+				Bounds bounds = colliders[0].bounds;
+				for (int i = 1; i < colliders.Length; i++)
+					bounds.Encapsulate(colliders[i].bounds);
 
-            // curve settings
-            var curveSettings = new ExaminePutter.CurveSettings
-            (
-                new ExaminePutter.PutCurve(PutPositionCurve)
-                {
-                    EvalMultiply = PutPositionCurveMultiplier,
-                    CurveTime = PutPositionCurveTime
-                },
-                new ExaminePutter.PutCurve(PutRotationCurve)
-                {
-                    EvalMultiply = PutRotationCurveMultiplier,
-                    CurveTime = PutRotationCurveTime
-                }
-             );
+				return bounds.center - interactableItem.transform.position;
+			}
 
-            // rigidbody settings
-            ExaminePutter.RigidbodySettings rigidbodySettings = null;
-            if (interactableItem.TryGetComponent(out Rigidbody rigidbody))
-            {
-                rigidbodySettings = new(rigidbody);
-                rigidbody.isKinematic = true;
-                rigidbody.useGravity = false;
-            }
+			return Vector3.zero;
+		}
 
-            // put settings
-            var putSettings = new ExaminePutter.PutSettings(
-                interactableItem.transform,
-                transformSettings,
-                curveSettings,
-                rigidbodySettings,
-                examinedObjects.Count > 0
-            );
+		private void ExamineObject(InteractableItem interactableItem)
+		{
+			if (interactableItem == null) return;
+			currentExamine?.GameObject.SetLayerRecursively(interactController.InteractLayer);
 
-            // push data to stack
-            examinedObjects.Push(currentExamine = new ExaminedObject()
-            {
-                InteractableItem = interactableItem,
-                PutSettings = putSettings,
-                HoldPosition = holdPosition,
-                StartPosition = interactableItem.transform.position,
-                StartRotation = interactableItem.transform.rotation,
-                ControlPoint = interactableItem.transform.position + controlOffset,
-                ExamineDistance = interactableItem.ExamineDistance
-            });
+			Vector3 centerOffset = GetExamineCenterOffset(interactableItem);
+			Vector3 controlPoint = interactableItem.UseControlPoint ? interactableItem.ControlPoint : Vector3.zero;
+			Vector3 controlOffset = Quaternion.LookRotation(MainCamera.transform.forward) * controlPoint;
+			Vector3 holdPosition = MainCamera.transform.position + MainCamera.transform.forward * interactableItem.ExamineDistance + centerOffset;
 
-            foreach (Collider collider in interactableItem.GetComponentsInChildren<Collider>())
-            {
-                Physics.IgnoreCollision(collider, PlayerCollider, true);
-            }
+			// transform settings
+			var transformSettings = new ExaminePutter.TransformSettings(
+				interactableItem.transform.position,
+				interactableItem.transform.rotation,
+				controlOffset
+			);
 
-            if (interactableItem.IsCustomExamine)
-            {
-                foreach (var col in interactableItem.CollidersEnable)
-                {
-                    col.enabled = true;
-                }
+			// curve settings
+			var curveSettings = new ExaminePutter.CurveSettings
+			(
+				new ExaminePutter.PutCurve(PutPositionCurve)
+				{
+					EvalMultiply = PutPositionCurveMultiplier,
+					CurveTime = PutPositionCurveTime
+				},
+				new ExaminePutter.PutCurve(PutRotationCurve)
+				{
+					EvalMultiply = PutRotationCurveMultiplier,
+					CurveTime = PutRotationCurveTime
+				}
+			 );
 
-                foreach (var col in interactableItem.CollidersDisable)
-                {
-                    col.enabled = false;
-                }
-            }
+			// rigidbody settings
+			ExaminePutter.RigidbodySettings rigidbodySettings = null;
+			if (interactableItem.TryGetComponent(out Rigidbody rigidbody))
+			{
+				rigidbodySettings = new(rigidbody);
+				rigidbody.isKinematic = true;
+				rigidbody.useGravity = false;
+			}
 
-            if (interactableItem.ShowExamineTitle)
-            {
-                StopAllCoroutines();
-                StartCoroutine(ExamineItemAndShowInfo(interactableItem));
-            }
+			// put settings
+			var putSettings = new ExaminePutter.PutSettings(
+				interactableItem.transform,
+				transformSettings,
+				curveSettings,
+				rigidbodySettings,
+				examinedObjects.Count > 0
+			);
 
-            if (interactableItem.ExamineType == ExamineTypeEnum.CustomObject && interactableItem.ExamineHotspot.HotspotTransform != null)
-            {
-                // clear previous active hotspot
-                if (examineHotspot != null)
-                {
-                    Destroy(examineHotspot.gameObject);
-                    examineHotspot = null;
-                }
+			// push data to stack
+			examinedObjects.Push(currentExamine = new ExaminedObject()
+			{
+				InteractableItem = interactableItem,
+				PutSettings = putSettings,
+				HoldPosition = holdPosition,
+				StartPosition = interactableItem.transform.position,
+				StartRotation = interactableItem.transform.rotation,
+				ControlPoint = interactableItem.transform.position + controlOffset + centerOffset,
+				ExamineDistance = interactableItem.ExamineDistance
+			});
 
-                // add new hotspot
-                GameObject hotspotGo = Instantiate(HotspotPrefab, Vector3.zero, Quaternion.identity, gameManager.ExamineHotspots);
-                Image hotspotImage = hotspotGo.GetComponent<Image>();
-                hotspotImage.Alpha(0f);
-                examineHotspot = hotspotImage;
-            }
+			foreach (Collider collider in interactableItem.GetComponentsInChildren<Collider>())
+			{
+				Physics.IgnoreCollision(collider, PlayerCollider, true);
+			}
 
-            // show interaction pointer 
-            if (interactableItem.AllowCursorExamine)
-            {
-                isPointerShown = true;
-                gameManager.ShowPointer(FocusCullLayes, FocusLayer, (hit, _) =>
-                {
-                    if (!isReadingPaper && hit.collider.gameObject.TryGetComponent(out InteractableItem interactableItem))
-                    {
-                        ExamineObject(interactableItem);
-                        gameManager.HidePointer();
-                        isPointerShown = false;
-                    }
-                });
-            }
+			if (interactableItem.IsCustomExamine)
+			{
+				foreach (var col in interactableItem.CollidersEnable)
+				{
+					col.enabled = true;
+				}
 
-            GameTools.PlayOneShot2D(transform.position, interactableItem.ExamineSound, "ExamineSound");
-            interactableItem.gameObject.SetLayerRecursively(FocusLayer);
-            interactableItem.gameObject.SetRenderingLayer(FocusRenderingLayer);
-            interactableItem.OnExamineStartEvent?.Invoke();
-            PlayerManager.PlayerItems.IsItemsUsable = false;
-        }
+				foreach (var col in interactableItem.CollidersDisable)
+				{
+					col.enabled = false;
+				}
+			}
 
-        IEnumerator ExamineItemAndShowInfo(InteractableItem item)
-        {
-            if (!item.IsExamined)
-            {
-                yield return new WaitForSeconds(TimeToExamine);
-                item.IsExamined = true;
+			if (interactableItem.ShowExamineTitle)
+			{
+				StopAllCoroutines();
+				StartCoroutine(ExamineItemAndShowInfo(interactableItem));
+			}
 
-                SoundClip examineHintSound = ExamineHintSound;
-                if (item.ExamineHintSound != null)
-                    examineHintSound = item.ExamineHintSound;
+			if (interactableItem.ExamineType == ExamineTypeEnum.CustomObject && interactableItem.ExamineHotspot.HotspotTransform != null)
+			{
+				// clear previous active hotspot
+				if (examineHotspot != null)
+				{
+					Destroy(examineHotspot.gameObject);
+					examineHotspot = null;
+				}
 
-                GameTools.PlayOneShot2D(transform.position, examineHintSound, "ExamineInfo");
-            }
+				// add new hotspot
+				GameObject hotspotGo = Instantiate(HotspotPrefab, Vector3.zero, Quaternion.identity, gameManager.ExamineHotspots);
+				Image hotspotImage = hotspotGo.GetComponent<Image>();
+				hotspotImage.Alpha(0f);
+				examineHotspot = hotspotImage;
+			}
 
-            string title = item.ExamineTitle;
-            if (item.ExamineInventoryTitle)
-            {
-                Item inventoryItem = item.PickupItem.GetItem();
-                title = inventoryItem.Title;
-            }
+			// show interaction pointer 
+			if (interactableItem.AllowCursorExamine)
+			{
+				isPointerShown = true;
+				gameManager.ShowPointer(FocusCullLayes, FocusLayer, (hit, _) =>
+				{
+					if (!isReadingPaper && hit.collider.gameObject.TryGetComponent(out InteractableItem interactableItem))
+					{
+						ExamineObject(interactableItem);
+						gameManager.HidePointer();
+						isPointerShown = false;
+					}
+				});
+			}
 
-            gameManager.ShowExamineInfo(true, false, title);
-        }
+			GameTools.PlayOneShot2D(transform.position, interactableItem.ExamineSound, "ExamineSound");
+			interactableItem.gameObject.SetLayerRecursively(FocusLayer);
+			interactableItem.gameObject.SetRenderingLayer(FocusRenderingLayer);
+			interactableItem.OnExamineStartEvent?.Invoke();
+			PlayerManager.PlayerItems.IsItemsUsable = false;
+		}
 
-        private void PopExaminedObject()
-        {
-            ExaminedObject obj = examinedObjects.Pop();
-            obj.InteractableItem.OnExamineEndEvent?.Invoke();
+		IEnumerator ExamineItemAndShowInfo(InteractableItem item)
+		{
+			if (!item.IsExamined)
+			{
+				yield return new WaitForSeconds(TimeToExamine);
+				item.IsExamined = true;
 
-            // destroy an object if there are no other objects examined and the object is examined from the inventory
-            if (examinedObjects.Count <= 0 && isInventoryExamine)
-            {
-                Destroy(obj.GameObject);
-            }
-            // otherwise return the object to its original location
-            else
-            {
-                obj.GameObject.AddComponent<ExaminePutter>().Put(obj.PutSettings);
-                obj.GameObject.SetRenderingLayer(FocusRenderingLayer, false);
-            }
+				SoundClip examineHintSound = ExamineHintSound;
+				if (item.ExamineHintSound != null)
+					examineHintSound = item.ExamineHintSound;
 
-            // if the number of examined objects is greater than zero, peek the previous object
-            if (examinedObjects.Count > 0)
-            {
-                currentExamine = examinedObjects.Peek();
-                currentExamine.GameObject.SetLayerRecursively(FocusLayer);
-            }
-            // otherwise reset examined object and unlock player
-            else
-            {
-                ResetExamine(obj);
-                currentExamine = null;
-            }
+				GameTools.PlayOneShot2D(transform.position, examineHintSound, "ExamineInfo");
+			}
 
-            // if it's a custom examine, enable/disable custom colliders
-            if (obj.InteractableItem.IsCustomExamine)
-            {
-                foreach (var col in obj.InteractableItem.CollidersEnable)
-                {
-                    col.enabled = false;
-                }
+			string title = item.ExamineTitle;
+			if (item.ExamineInventoryTitle)
+			{
+				Item inventoryItem = item.PickupItem.GetItem();
+				title = inventoryItem.Title;
+			}
 
-                foreach (var col in obj.InteractableItem.CollidersDisable)
-                {
-                    col.enabled = true;
-                }
-            }
+			gameManager.ShowExamineInfo(true, false, title);
+		}
 
-            // disable pointer
-            if (isPointerShown) gameManager.HidePointer();
-            gameManager.ShowPaperInfo(false, true);
-            isReadingPaper = false;
-            isPointerShown = false;
-        }
+		private void PopExaminedObject()
+		{
+			ExaminedObject obj = examinedObjects.Pop();
+			obj.InteractableItem.OnExamineEndEvent?.Invoke();
 
-        private void ExamineHold()
-        {
-            InteractableItem currentItem = currentExamine.InteractableItem;
+			// destroy an object if there are no other objects examined and the object is examined from the inventory
+			if (examinedObjects.Count <= 0 && isInventoryExamine)
+			{
+				Destroy(obj.GameObject);
+			}
+			// otherwise return the object to its original location
+			else
+			{
+				obj.GameObject.AddComponent<ExaminePutter>().Put(obj.PutSettings);
+				obj.GameObject.SetRenderingLayer(FocusRenderingLayer, false);
+			}
 
-            // hold position
-            foreach (var obj in examinedObjects)
-            {
-                Vector3 holdPos = MainCamera.transform.position + MainCamera.transform.forward * obj.ExamineDistance;
-                obj.HoldPosition = Vector3.Lerp(obj.HoldPosition, holdPos, Time.deltaTime * 5);
-                float speedMultiplier = PickUpCurve.Evaluate(obj.t) * PickUpCurveMultiplier;
-                obj.t = Mathf.SmoothDamp(obj.t, 1f, ref obj.Velocity, PickUpTime + speedMultiplier);
-                obj.InteractableItem.transform.position = VectorE.QuadraticBezier(obj.StartPosition, obj.HoldPosition, obj.ControlPoint, obj.t);
-            }
+			// if the number of examined objects is greater than zero, peek the previous object
+			if (examinedObjects.Count > 0)
+			{
+				currentExamine = examinedObjects.Peek();
+				currentExamine.GameObject.SetLayerRecursively(FocusLayer);
+			}
+			// otherwise reset examined object and unlock player
+			else
+			{
+				ResetExamine(obj);
+				currentExamine = null;
+			}
 
-            // rotation
-            if (currentItem.UseFaceRotation && currentExamine.t <= 0.99f)
-            {
-                Vector3 faceRotation = currentItem.FaceRotation;
-                Quaternion faceRotationQ = Quaternion.LookRotation(MainCamera.transform.forward) * Quaternion.Euler(faceRotation);
-                currentItem.transform.rotation = Quaternion.Slerp(currentExamine.StartRotation, faceRotationQ, currentExamine.t);
-            }
-            else if (!gameManager.IsPointerHolding && !isReadingPaper && InputManager.ReadButton(Controls.FIRE))
-            {
-                Vector2 rotateValue = InputManager.ReadInput<Vector2>(Controls.LOOK) * RotateMultiplier;
-                examineRotate = Vector2.SmoothDamp(examineRotate, rotateValue, ref rotateVelocity, RotateTime);
+			// if it's a custom examine, enable/disable custom colliders
+			if (obj.InteractableItem.IsCustomExamine)
+			{
+				foreach (var col in obj.InteractableItem.CollidersEnable)
+				{
+					col.enabled = false;
+				}
 
-                switch (currentItem.ExamineRotate)
-                {
-                    case ExamineRotateEnum.Horizontal:
-                        currentItem.transform.Rotate(MainCamera.transform.up, -examineRotate.x, Space.World);
-                        break;
-                    case ExamineRotateEnum.Vertical:
-                        currentItem.transform.Rotate(MainCamera.transform.right, examineRotate.y, Space.World);
-                        break;
-                    case ExamineRotateEnum.Both:
-                        currentItem.transform.Rotate(MainCamera.transform.up, -examineRotate.x, Space.World);
-                        currentItem.transform.Rotate(MainCamera.transform.right, examineRotate.y, Space.World);
-                        break;
-                }
-            }
+				foreach (var col in obj.InteractableItem.CollidersDisable)
+				{
+					col.enabled = true;
+				}
+			}
 
-            // examine zooming
-            if (!isReadingPaper && currentItem.UseExamineZooming)
-            {
-                Vector2 scroll = InputManager.ReadInput<Vector2>(Controls.SCROLL_WHEEL);
-                float nextZoom = currentExamine.ExamineDistance + scroll.normalized.y * ZoomMultiplier;
-                currentExamine.ExamineDistance = Mathf.Clamp(nextZoom, currentItem.ExamineZoomLimits.RealMin, currentItem.ExamineZoomLimits.RealMax);
-            }
+			// disable pointer
+			if (isPointerShown) gameManager.HidePointer();
+			gameManager.ShowPaperInfo(false, true);
+			isReadingPaper = false;
+			isPointerShown = false;
+		}
 
-            // examine hotspots
-            bool isHotspotShown = false;
-            if (examineHotspot != null && currentItem.ExamineHotspot.HotspotTransform != null)
-            {
-                if (currentItem.ExamineType == ExamineTypeEnum.CustomObject
-                && currentItem.ExamineHotspot.HotspotTransform.gameObject.activeInHierarchy
-                && currentExamine.t > 0.99f)
-                {
-                    var hotspot = currentItem.ExamineHotspot;
-                    Vector3 mainCamera = MainCamera.transform.position;
-                    Vector3 hotspotPos = currentItem.ExamineHotspot.HotspotTransform.position;
+		private void ExamineHold()
+		{
+			InteractableItem currentItem = currentExamine.InteractableItem;
 
-                    Vector3 screenPointPos = MainCamera.WorldToScreenPoint(hotspotPos);
-                    examineHotspot.transform.position = screenPointPos;
+			// hold position
+			foreach (var obj in examinedObjects)
+			{
+				Vector3 holdPos = MainCamera.transform.position + MainCamera.transform.forward * obj.ExamineDistance;
+				obj.HoldPosition = Vector3.Lerp(obj.HoldPosition, holdPos, Time.deltaTime * 5);
+				float speedMultiplier = PickUpCurve.Evaluate(obj.t) * PickUpCurveMultiplier;
+				obj.t = Mathf.SmoothDamp(obj.t, 1f, ref obj.Velocity, PickUpTime + speedMultiplier);
+				obj.InteractableItem.transform.position = VectorE.QuadraticBezier(obj.StartPosition, obj.HoldPosition, obj.ControlPoint, obj.t);
+			}
 
-                    Vector3 direction = hotspotPos - mainCamera;
-                    direction -= direction.normalized * 0.01f;
+			// rotation
+			if (currentItem.UseFaceRotation && currentExamine.t <= 0.99f)
+			{
+				Vector3 faceRotation = currentItem.FaceRotation;
+				Quaternion faceRotationQ = Quaternion.LookRotation(MainCamera.transform.forward) * Quaternion.Euler(faceRotation);
+				currentItem.transform.rotation = Quaternion.Slerp(currentExamine.StartRotation, faceRotationQ, currentExamine.t);
+			}
+			else if (!gameManager.IsPointerHolding && !isReadingPaper && InputManager.ReadButton(Controls.FIRE))
+			{
+				Vector2 rotateValue = InputManager.ReadInput<Vector2>(Controls.LOOK) * RotateMultiplier;
+				examineRotate = Vector2.SmoothDamp(examineRotate, rotateValue, ref rotateVelocity, RotateTime);
 
-                    float alpha = examineHotspot.color.a;
-                    {
-                        if (!Physics.Raycast(mainCamera, direction, out _, direction.magnitude, FocusCullLayes, QueryTriggerInteraction.Ignore) && currentItem.ExamineHotspot.Enabled)
-                        {
-                            alpha = Mathf.MoveTowards(alpha, 1f, Time.deltaTime * 10f);
-                            isHotspotShown = true;
+				switch (currentItem.ExamineRotate)
+				{
+					case ExamineRotateEnum.Horizontal:
+						currentItem.transform.Rotate(MainCamera.transform.up, -examineRotate.x, Space.World);
+						break;
+					case ExamineRotateEnum.Vertical:
+						currentItem.transform.Rotate(MainCamera.transform.right, examineRotate.y, Space.World);
+						break;
+					case ExamineRotateEnum.Both:
+						currentItem.transform.Rotate(MainCamera.transform.up, -examineRotate.x, Space.World);
+						currentItem.transform.Rotate(MainCamera.transform.right, examineRotate.y, Space.World);
+						break;
+				}
+			}
 
-                            if (InputManager.ReadButtonOnce(this, Controls.USE))
-                            {
-                                hotspot.HotspotAction?.Invoke();
-                                if (hotspot.ResetHotspot)
-                                    isHotspotPressed = !isHotspotPressed;
-                            }
-                        }
-                        else
-                        {
-                            alpha = Mathf.MoveTowards(alpha, 0f, Time.deltaTime * 10f);
-                        }
-                    }
-                    examineHotspot.Alpha(alpha);
-                }
-                else
-                {
-                    examineHotspot.Alpha(0f);
-                }
-            }
+			// examine zooming
+			if (!isReadingPaper && currentItem.UseExamineZooming)
+			{
+				Vector2 scroll = InputManager.ReadInput<Vector2>(Controls.SCROLL_WHEEL);
+				float nextZoom = currentExamine.ExamineDistance + scroll.normalized.y * ZoomMultiplier;
+				currentExamine.ExamineDistance = Mathf.Clamp(nextZoom, currentItem.ExamineZoomLimits.RealMin, currentItem.ExamineZoomLimits.RealMax);
+			}
 
-            // paper reading
-            if (!isHotspotShown) // if the hotspot is not shown, you can read the paper or take the item
-            {
-                if (currentItem.InteractableType == InteractableTypeEnum.ExamineItem && currentItem.IsPaper && !string.IsNullOrEmpty(currentItem.PaperText))
-                {
-                    if (InputManager.ReadButtonOnce(GetInstanceID(), Controls.USE))
-                    {
-                        isReadingPaper = !isReadingPaper;
-                        gameManager.ShowPaperInfo(isReadingPaper, false, currentItem.PaperText);
-                    }
-                }
-                else if (currentItem.InteractableType == InteractableTypeEnum.InventoryItem && currentItem.TakeFromExamine)
-                {
-                    if (InputManager.ReadButtonOnce(GetInstanceID(), Controls.USE))
-                    {
-                        ResetExamine(currentExamine, true);
-                        interactController.Interact(currentExamine.GameObject);
-                        currentExamine = null;
-                        return;
-                    }
-                }
-            }
-        }
+			// examine hotspots
+			bool isHotspotShown = false;
+			if (examineHotspot != null && currentItem.ExamineHotspot.HotspotTransform != null)
+			{
+				if (currentItem.ExamineType == ExamineTypeEnum.CustomObject
+				&& currentItem.ExamineHotspot.HotspotTransform.gameObject.activeInHierarchy
+				&& currentExamine.t > 0.99f)
+				{
+					var hotspot = currentItem.ExamineHotspot;
+					Vector3 mainCamera = MainCamera.transform.position;
+					Vector3 hotspotPos = currentItem.ExamineHotspot.HotspotTransform.position;
 
-        private void ResetExamine(ExaminedObject examine, bool examineTake = false)
-        {
-            gameManager.SetBlur(false, true);
-            gameManager.FreezePlayer(false);
-            gameManager.ShowPanel(GameManager.PanelType.MainPanel);
-            gameManager.ShowControlsInfo(false, new ControlsContext[0]);
-            gameManager.ShowExamineInfo(false, true);
-            PlayerManager.PlayerItems.IsItemsUsable = true;
+					Vector3 screenPointPos = MainCamera.WorldToScreenPoint(hotspotPos);
+					examineHotspot.transform.position = screenPointPos;
 
-            StopAllCoroutines();
-            examinedObjects.Clear();
+					Vector3 direction = hotspotPos - mainCamera;
+					direction -= direction.normalized * 0.01f;
 
-            if(!isInventoryExamine)
-                examine.GameObject.SetLayerRecursively(interactController.InteractLayer);
+					float alpha = examineHotspot.color.a;
+					{
+						if (!Physics.Raycast(mainCamera, direction, out _, direction.magnitude, FocusCullLayes, QueryTriggerInteraction.Ignore) && currentItem.ExamineHotspot.Enabled)
+						{
+							alpha = Mathf.MoveTowards(alpha, 1f, Time.deltaTime * 10f);
+							isHotspotShown = true;
 
-            if (!examineTake)
-            {
-                if (examineHotspot != null)
-                {
-                    var hotspot = examine.InteractableItem.ExamineHotspot;
-                    if (hotspot.ResetHotspot && isHotspotPressed)
-                    {
-                        hotspot.HotspotAction?.Invoke();
-                        isHotspotPressed = false;
-                    }
+							if (InputManager.ReadButtonOnce(this, Controls.USE))
+							{
+								hotspot.HotspotAction?.Invoke();
+								if (hotspot.ResetHotspot)
+									isHotspotPressed = !isHotspotPressed;
+							}
+						}
+						else
+						{
+							alpha = Mathf.MoveTowards(alpha, 0f, Time.deltaTime * 10f);
+						}
+					}
+					examineHotspot.Alpha(alpha);
+				}
+				else
+				{
+					examineHotspot.Alpha(0f);
+				}
+			}
 
-                    Destroy(examineHotspot.gameObject);
-                    examineHotspot = null;
-                }
-            }
-            else
-            {
-                if (examineHotspot != null)
-                {
-                    Destroy(examineHotspot.gameObject);
-                    examineHotspot = null;
-                }
+			// paper reading
+			if (!isHotspotShown) // if the hotspot is not shown, you can read the paper or take the item
+			{
+				if (currentItem.InteractableType == InteractableTypeEnum.ExamineItem && currentItem.IsPaper && !string.IsNullOrEmpty(currentItem.PaperText))
+				{
+					if (InputManager.ReadButtonOnce(GetInstanceID(), Controls.USE))
+					{
+						isReadingPaper = !isReadingPaper;
+						gameManager.ShowPaperInfo(isReadingPaper, false, currentItem.PaperText);
+					}
+				}
+				else if (currentItem.InteractableType == InteractableTypeEnum.InventoryItem && currentItem.TakeFromExamine)
+				{
+					if (InputManager.ReadButtonOnce(GetInstanceID(), Controls.USE))
+					{
+						ResetExamine(currentExamine, true);
+						interactController.Interact(currentExamine.GameObject);
+						currentExamine = null;
+						return;
+					}
+				}
+			}
+		}
 
-                Vector3 position = examine.PutSettings.TransformData.Position;
-                Quaternion rotation = examine.PutSettings.TransformData.Rotation;
-                examine.GameObject.transform.SetPositionAndRotation(position, rotation);
-                examine.GameObject.SetActive(false);
-            }
+		private void ResetExamine(ExaminedObject examine, bool examineTake = false)
+		{
+			gameManager.SetBlur(false, true);
+			gameManager.FreezePlayer(false);
+			gameManager.ShowPanel(GameManager.PanelType.MainPanel);
+			gameManager.ShowControlsInfo(false, new ControlsContext[0]);
+			gameManager.ShowExamineInfo(false, true);
+			PlayerManager.PlayerItems.IsItemsUsable = true;
 
-            isInventoryExamine = false;
-            IsExamining = false;
-        }
+			StopAllCoroutines();
+			examinedObjects.Clear();
 
-        private void OnDrawGizmosSelected()
-        {
-            Gizmos.color = Color.cyan;
-            Gizmos.DrawWireSphere(InventoryPosition, 0.01f);
-            if(ShowLabels) GizmosE.DrawCenteredLabel(InventoryPosition, "Inventory Position");
+			if (!isInventoryExamine)
+				examine.GameObject.SetLayerRecursively(interactController.InteractLayer);
 
-            Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(DropPosition, 0.01f);
-            if (ShowLabels) GizmosE.DrawCenteredLabel(DropPosition, "Drop Position");
-        }
-    }
+			if (!examineTake)
+			{
+				if (examineHotspot != null)
+				{
+					var hotspot = examine.InteractableItem.ExamineHotspot;
+					if (hotspot.ResetHotspot && isHotspotPressed)
+					{
+						hotspot.HotspotAction?.Invoke();
+						isHotspotPressed = false;
+					}
+
+					Destroy(examineHotspot.gameObject);
+					examineHotspot = null;
+				}
+			}
+			else
+			{
+				if (examineHotspot != null)
+				{
+					Destroy(examineHotspot.gameObject);
+					examineHotspot = null;
+				}
+
+				Vector3 position = examine.PutSettings.TransformData.Position;
+				Quaternion rotation = examine.PutSettings.TransformData.Rotation;
+				examine.GameObject.transform.SetPositionAndRotation(position, rotation);
+				examine.GameObject.SetActive(false);
+			}
+
+			isInventoryExamine = false;
+			IsExamining = false;
+		}
+
+		private void OnDrawGizmosSelected()
+		{
+			Gizmos.color = Color.cyan;
+			Gizmos.DrawWireSphere(InventoryPosition, 0.01f);
+			if (ShowLabels) GizmosE.DrawCenteredLabel(InventoryPosition, "Inventory Position");
+
+			Gizmos.color = Color.red;
+			Gizmos.DrawWireSphere(DropPosition, 0.01f);
+			if (ShowLabels) GizmosE.DrawCenteredLabel(DropPosition, "Drop Position");
+		}
+	}
 }

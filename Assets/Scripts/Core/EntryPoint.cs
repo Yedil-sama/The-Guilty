@@ -4,9 +4,7 @@ using TheGuilty.Core.Audio.Sfx;
 using TheGuilty.Core.Audio.Voice;
 using TheGuilty.Core.Directors;
 using TheGuilty.Core.GameEvents;
-using TheGuilty.Core.VisualEffects;
 using UnityEngine;
-using UnityEngine.Rendering;
 
 namespace TheGuilty.Core
 {
@@ -17,19 +15,16 @@ namespace TheGuilty.Core
 		[SerializeField] private AudioSource _sfxAudioSourcePrefab;
 		[SerializeField] private AudioSource _musicAudioSource;
 
-		[Header("Visual Effects")]
-		[SerializeField] private Volume _postProcessVolume;
-		[SerializeField] private Camera _playerCamera;
-
 		private GameEventBus _eventBus;
 
 		private IVoiceAudioService _voiceService;
 		private ISfxAudioService _sfxService;
 		private IMusicAudioService _musicService;
 
+		private SceneObjectProviderService _sceneObjectProvider;
 		private NarrativeDirector _narrativeDirector;
 		private AudioDirector _audioDirector;
-		private VisualEffectsDirector _visualEffectsDirector;
+		private GameDirector _gameDirector;
 
 		private void Awake()
 		{
@@ -48,30 +43,39 @@ namespace TheGuilty.Core
 			_sfxService = new SfxAudioService(_sfxAudioSourcePrefab, transform);
 			_musicService = new MusicAudioService(_musicAudioSource);
 
+			// Initialize scene object provider service
+			_sceneObjectProvider = GetComponent<SceneObjectProviderService>();
+			if (_sceneObjectProvider == null)
+			{
+				_sceneObjectProvider = gameObject.AddComponent<SceneObjectProviderService>();
+			}
+
 			ServiceLocator.Register(_eventBus);
 			ServiceLocator.Register(_voiceService);
 			ServiceLocator.Register(_sfxService);
 			ServiceLocator.Register(_musicService);
+			ServiceLocator.Register(_sceneObjectProvider);
 
 			_eventBus.Initialize();
 			_voiceService.Initialize();
 			_sfxService.Initialize();
 			_musicService.Initialize();
+			_sceneObjectProvider.Initialize();
 		}
 
 		private void InitializeDirectors()
 		{
 			_audioDirector = new AudioDirector(this);
 			_narrativeDirector = new NarrativeDirector(this);
-			_visualEffectsDirector = new VisualEffectsDirector(this, _postProcessVolume, _playerCamera);
+			_gameDirector = new GameDirector(_eventBus, _narrativeDirector);
 
 			ServiceLocator.Register(_audioDirector);
 			ServiceLocator.Register(_narrativeDirector);
-			ServiceLocator.Register(_visualEffectsDirector);
+			ServiceLocator.Register(_gameDirector);
 
 			_audioDirector.Initialize();
 			_narrativeDirector.Initialize();
-			_visualEffectsDirector.Initialize();
+			_gameDirector.Initialize();
 		}
 
 		private void StartGame()

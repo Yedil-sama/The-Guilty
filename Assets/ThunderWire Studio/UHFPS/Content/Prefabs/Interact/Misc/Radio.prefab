@@ -660,7 +660,7 @@ MonoBehaviour:
   InteractableType: 2
   MessageType: 0
   ExamineType: 2
-  ExamineRotate: 3
+  ExamineRotate: 1
   DisableType: 0
   PickupItem:
     m_GUID: 

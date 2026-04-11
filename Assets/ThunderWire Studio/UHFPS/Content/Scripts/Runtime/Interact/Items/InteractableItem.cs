@@ -62,8 +62,8 @@ namespace UHFPS.Runtime
         public bool AutoEquip = false;
 
         public bool UseExamineZooming = true;
-        public MinMax ExamineZoomLimits = new(0.3f, 0.4f);
-        public float ExamineDistance = 0.4f;
+        public MinMax ExamineZoomLimits = new(0.3f, 1.5f);
+        public float ExamineDistance = 0.8f;
 
         public bool UseFaceRotation;
         public Vector3 FaceRotation;
