@@ -18,6 +18,7 @@ namespace TheGuilty.Core.Directors
 		private int _stage;
 		private bool _sequenceStarted;
 		private bool _finalTriggered;
+		private bool _finishedAllStages;
 		private float _stageTimer;
 		private float _exitTimer;
 		private bool _exitCountdownStarted;
@@ -25,6 +26,7 @@ namespace TheGuilty.Core.Directors
 		private const float StageAdvanceDelay = 3f;
 		private const float ExitPunishDelay = 10f;
 		private const float FinalSpawnDistance = 1.5f;
+
 		private const string FarAwayEventName = "FarAway";
 
 		public MirrorMannequinNarrative(
@@ -45,12 +47,13 @@ namespace TheGuilty.Core.Directors
 		{
 			base.Start();
 
-			_stage = 0;
+			_stage = -1;
 			_stageTimer = 0f;
 			_exitTimer = 0f;
 			_exitCountdownStarted = false;
 			_sequenceStarted = false;
 			_finalTriggered = false;
+			_finishedAllStages = false;
 
 			if (_mannequin == null || _mirror == null || _player == null || _holder == null)
 			{
@@ -78,15 +81,14 @@ namespace TheGuilty.Core.Directors
 				if (insideZone && lookingAtMirror)
 				{
 					_sequenceStarted = true;
-					_stage = 0;
 					_stageTimer = 0f;
-					MoveToStagePosition(_stage, true);
+					AdvanceToNextStage();
 				}
 
 				return;
 			}
 
-			if (!insideZone && _stage < 3)
+			if (!insideZone && !_finishedAllStages)
 			{
 				if (!_exitCountdownStarted)
 				{
@@ -98,7 +100,7 @@ namespace TheGuilty.Core.Directors
 				if (_exitTimer >= ExitPunishDelay)
 				{
 					_finalTriggered = true;
-					StartRoutine(FinalScareNearPlayer());
+					StartRoutine(PunishAndChasePlayerRoutine());
 				}
 
 				return;
@@ -110,14 +112,18 @@ namespace TheGuilty.Core.Directors
 				_exitTimer = 0f;
 			}
 
+			if (_finishedAllStages)
+				return;
+
 			_stageTimer += Time.deltaTime;
+
 			if (_stageTimer >= StageAdvanceDelay)
 			{
-				AdvanceStageOrFinish();
+				AdvanceToNextStage();
 			}
 		}
 
-		private void AdvanceStageOrFinish()
+		private void AdvanceToNextStage()
 		{
 			_stageTimer = 0f;
 			_stage++;
@@ -125,12 +131,12 @@ namespace TheGuilty.Core.Directors
 			if (_stage <= 2)
 			{
 				MoveToStagePosition(_stage, true);
+				return;
 			}
-			else
-			{
-				_finalTriggered = true;
-				StartRoutine(FinalScareNearPlayer());
-			}
+
+			TeleportFarAwayAndHide();
+			_finishedAllStages = true;
+			_isComplete = true;
 		}
 
 		private void MoveToStagePosition(int stage, bool playSound)
@@ -152,7 +158,7 @@ namespace TheGuilty.Core.Directors
 				PlayOneShot(_dunClip);
 		}
 
-		private IEnumerator FinalScareNearPlayer()
+		private IEnumerator PunishAndChasePlayerRoutine()
 		{
 			Vector3 spawnPos = _player.position - _player.forward * FinalSpawnDistance;
 
@@ -168,12 +174,28 @@ namespace TheGuilty.Core.Directors
 				: Quaternion.identity;
 
 			_mannequin.TeleportToPosition(spawnPos, rot);
-			SetIdleFacingPlayer();
+			PlayOneShot(_dunClip);
+
+			if (_player != null)
+			{
+				Vector3 dir = _player.position - _mannequin.transform.position;
+				dir.y = 0f;
+				if (dir.sqrMagnitude > 0.001f)
+				{
+					_mannequin.transform.rotation = Quaternion.LookRotation(dir.normalized);
+				}
+			}
+
+			if (_mannequin.NavMeshAgent != null)
+			{
+				_mannequin.SafeResumeAgent();
+			}
+
+			_mannequin.SetStrategy(new RunningStrategy());
+			_mannequin.ChangeState(MannequinState.Following);
 			EnableHitbox();
 
-			yield return new WaitForSeconds(2f);
-
-			_isComplete = true;
+			yield return null;
 		}
 
 		private void TeleportFarAwayAndHide()
@@ -182,6 +204,10 @@ namespace TheGuilty.Core.Directors
 			if (farAway != null)
 			{
 				_mannequin.TeleportTo(farAway);
+			}
+			else
+			{
+				Debug.LogWarning($"[MirrorMannequinNarrative] Event position '{FarAwayEventName}' not found.");
 			}
 
 			_mannequin.SetStrategy(new IdleStrategy());
