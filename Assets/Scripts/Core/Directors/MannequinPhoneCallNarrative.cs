@@ -52,6 +52,7 @@ namespace TheGuilty.Core.Directors
 		private bool _afkChaseStarted;
 		private bool _afkPunishmentStarted;
 		private bool _isDisappearing;
+		private bool _introAnimationReleased;
 
 		private float _elapsedTime;
 		private float _ignorePhoneTimer;
@@ -122,6 +123,7 @@ namespace TheGuilty.Core.Directors
 			_afkChaseStarted = false;
 			_afkPunishmentStarted = false;
 			_isDisappearing = false;
+			_introAnimationReleased = false;
 
 			_elapsedTime = 0f;
 			_ignorePhoneTimer = 0f;
@@ -144,7 +146,7 @@ namespace TheGuilty.Core.Directors
 
 			CreateNarrativeAudioSource();
 
-			SetMode(NarrativeMoveMode.Idle);
+			_mannequin.LockAnimation();
 			DisableHitbox();
 			PlayLoopingPhoneRing();
 
@@ -164,13 +166,11 @@ namespace TheGuilty.Core.Directors
 			if (mannequinSeen)
 				_playerSawMannequin = true;
 
-			// SIMPLE WANTED BEHAVIOR:
-			// After first 10 sec, if phone not picked up, keep checking every frame.
-			// First frame mannequin is not seen -> teleport.
 			if (!_phonePickedUp && !_teleportSucceeded && _elapsedTime >= InitialTeleportDelay)
 			{
 				if (!mannequinSeen)
 				{
+					ReleaseIntroAnimation();
 					_teleportSucceeded = TeleportToPhoneCallEvent();
 
 					if (_teleportSucceeded)
@@ -182,10 +182,9 @@ namespace TheGuilty.Core.Directors
 				}
 			}
 
-			// If player kept mannequin in view past 10 sec and then picked up the phone,
-			// only then mannequin should quiet walk.
 			if (_phonePickedUp && !_teleportSucceeded && _elapsedTime >= InitialTeleportDelay)
 			{
+				ReleaseIntroAnimation();
 				_shouldQuietWalkAfterPickup = true;
 			}
 
@@ -205,6 +204,7 @@ namespace TheGuilty.Core.Directors
 
 				if (_ignorePhoneTimer >= IgnorePhoneThreshold && !_afkChaseStarted && !_afkPunishmentStarted)
 				{
+					ReleaseIntroAnimation();
 					_afkChaseStarted = true;
 					_afkChaseTimer = 0f;
 					SetMode(NarrativeMoveMode.Run);
@@ -293,6 +293,15 @@ namespace TheGuilty.Core.Directors
 			}
 		}
 
+		private void ReleaseIntroAnimation()
+		{
+			if (_introAnimationReleased || _mannequin == null)
+				return;
+
+			_introAnimationReleased = true;
+			_mannequin.UnlockAnimation();
+		}
+
 		private void OnPhoneCallStarted(PhoneCallStartedEvent evt)
 		{
 			if (_phonePickedUp)
@@ -323,6 +332,7 @@ namespace TheGuilty.Core.Directors
 			if (_mannequin == null || _currentMode == mode)
 				return;
 
+			ReleaseIntroAnimation();
 			_currentMode = mode;
 
 			switch (mode)
@@ -330,6 +340,7 @@ namespace TheGuilty.Core.Directors
 				case NarrativeMoveMode.Idle:
 					_mannequin.SetStrategy(new IdleStrategy());
 					_mannequin.ChangeState(MannequinState.Idle);
+					_mannequin.SetMovementState(false, false, false, false);
 					_mannequin.SafeResetPath();
 					break;
 
@@ -337,12 +348,14 @@ namespace TheGuilty.Core.Directors
 					_mannequin.SafeResumeAgent();
 					_mannequin.SetStrategy(new QuiteWalkStrategy());
 					_mannequin.ChangeState(MannequinState.Following);
+					_mannequin.SetMovementState(false, false, false, true);
 					break;
 
 				case NarrativeMoveMode.Run:
 					_mannequin.SafeResumeAgent();
 					_mannequin.SetStrategy(new RunningStrategy());
 					_mannequin.ChangeState(MannequinState.Following);
+					_mannequin.SetMovementState(false, true, false, false);
 					break;
 			}
 		}
@@ -463,6 +476,7 @@ namespace TheGuilty.Core.Directors
 				? Quaternion.LookRotation(lookDir.normalized)
 				: Quaternion.identity;
 
+			ReleaseIntroAnimation();
 			_mannequin.TeleportToPosition(spawnPos, rot);
 			SetMode(NarrativeMoveMode.Idle);
 			EnableHitbox();

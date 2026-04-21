@@ -94,6 +94,15 @@ namespace TheGuilty.Core.Directors
 			));
 
 			// Add more narratives here as needed
+
+			_narratives.Add(new BedroomHideNarrative(
+				mannequin: mannequin,
+				holder: transformHolder,
+				hideSpot: sceneProvider.BedroomHideSpot,
+				bedroomDoor: sceneProvider.BedroomDoor,
+				player: player.transform,
+				coroutineHost: _coroutineHost
+			));
 		}
 
 		private void OnGameStarted(GameStartedEvent _)
