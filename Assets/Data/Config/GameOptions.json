@@ -21,6 +21,6 @@
   "pp_vignette": true,
   "pp_grain": true,
   "pp_chromatic_aberration": true,
-  "volume_general": 0.25,
-  "volume_music": 0.2
+  "volume_general": 0.55,
+  "volume_music": 1.0
 }

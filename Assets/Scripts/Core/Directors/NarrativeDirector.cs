@@ -54,10 +54,10 @@ namespace TheGuilty.Core.Directors
 			}
 
 			// Load voiceline audio clip
-			AudioClip voicelineClip = Resources.Load<AudioClip>("Audio/Voice/ItsMe");
+			AudioClip voicelineClip = Resources.Load<AudioClip>("Audio/Voice/Narrative 1 - Its Me");
 			if (voicelineClip == null)
 			{
-				Debug.Log("NarrativeDirector: Voiceline audio clip not found at Resources/Audio/Voice/ItsMe");
+				Debug.Log("NarrativeDirector: Voiceline audio clip not found at Resources/Audio/Voice/Narrative 1 - Its Me");
 				return;
 			}
 
