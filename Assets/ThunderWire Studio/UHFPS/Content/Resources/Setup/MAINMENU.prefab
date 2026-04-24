@@ -696,8 +696,8 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: dee1cb6c2ee294c6087ea9d89d368417, type: 3}
-  m_Type: 1
+  m_Sprite: {fileID: 21300000, guid: 8e865c99c1efe364ab8b69aa7ae1a578, type: 3}
+  m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 4
@@ -728,9 +728,9 @@ MonoBehaviour:
   m_Transition: 1
   m_Colors:
     m_NormalColor: {r: 1, g: 1, b: 1, a: 0}
-    m_HighlightedColor: {r: 0.7490196, g: 0.8, b: 0.8, a: 0.2}
-    m_PressedColor: {r: 0.3745098, g: 0.4, b: 0.4, a: 0.2}
-    m_SelectedColor: {r: 0.7490196, g: 0.8, b: 0.8, a: 0.2}
+    m_HighlightedColor: {r: 0.7490196, g: 0.8, b: 0.8, a: 1}
+    m_PressedColor: {r: 0.3745098, g: 0.4, b: 0.4, a: 0.53333336}
+    m_SelectedColor: {r: 0.7490196, g: 0.8, b: 0.8, a: 1}
     m_DisabledColor: {r: 1, g: 1, b: 1, a: 0}
     m_ColorMultiplier: 1
     m_FadeDuration: 0.1
@@ -2398,8 +2398,8 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: dee1cb6c2ee294c6087ea9d89d368417, type: 3}
-  m_Type: 1
+  m_Sprite: {fileID: 21300000, guid: 8e865c99c1efe364ab8b69aa7ae1a578, type: 3}
+  m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 4
@@ -2430,9 +2430,9 @@ MonoBehaviour:
   m_Transition: 1
   m_Colors:
     m_NormalColor: {r: 1, g: 1, b: 1, a: 0}
-    m_HighlightedColor: {r: 0.7490196, g: 0.8, b: 0.8, a: 0.2}
-    m_PressedColor: {r: 0.3745098, g: 0.4, b: 0.4, a: 0.2}
-    m_SelectedColor: {r: 0.7490196, g: 0.8, b: 0.8, a: 0.2}
+    m_HighlightedColor: {r: 0.7490196, g: 0.8, b: 0.8, a: 1}
+    m_PressedColor: {r: 0.3745098, g: 0.4, b: 0.4, a: 0.53333336}
+    m_SelectedColor: {r: 0.7490196, g: 0.8, b: 0.8, a: 1}
     m_DisabledColor: {r: 1, g: 1, b: 1, a: 0}
     m_ColorMultiplier: 1
     m_FadeDuration: 0.1
@@ -6170,7 +6170,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 0f95b16e6020fc24787ef8dd333dcccb, type: 3}
+  m_Sprite: {fileID: 21300000, guid: dc845d7563780ca429c92e8115504c4c, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -22960,8 +22960,8 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: dee1cb6c2ee294c6087ea9d89d368417, type: 3}
-  m_Type: 1
+  m_Sprite: {fileID: 21300000, guid: 8e865c99c1efe364ab8b69aa7ae1a578, type: 3}
+  m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 4
@@ -22992,9 +22992,9 @@ MonoBehaviour:
   m_Transition: 1
   m_Colors:
     m_NormalColor: {r: 1, g: 1, b: 1, a: 0}
-    m_HighlightedColor: {r: 0.7490196, g: 0.8, b: 0.8, a: 0.2}
-    m_PressedColor: {r: 0.3745098, g: 0.4, b: 0.4, a: 0.2}
-    m_SelectedColor: {r: 0.7490196, g: 0.8, b: 0.8, a: 0.2}
+    m_HighlightedColor: {r: 0.7490196, g: 0.8, b: 0.8, a: 1}
+    m_PressedColor: {r: 0.3745098, g: 0.4, b: 0.4, a: 0.53333336}
+    m_SelectedColor: {r: 0.7490196, g: 0.8, b: 0.8, a: 1}
     m_DisabledColor: {r: 1, g: 1, b: 1, a: 0}
     m_ColorMultiplier: 1
     m_FadeDuration: 0.1
