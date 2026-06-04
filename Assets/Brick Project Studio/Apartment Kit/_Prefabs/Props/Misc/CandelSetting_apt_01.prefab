@@ -493,7 +493,7 @@ MonoBehaviour:
     GlocText: 
     NormalText: 
   ExamineTitle:
-    GlocText: 
+    GlocText: Spectate
     NormalText: 
   PaperText:
     GlocText: 
